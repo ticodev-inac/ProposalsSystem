@@ -9,26 +9,192 @@ class PDFGenerator {
     this.assets = null
     this.currentY = 20
     this.pageHeight = 297 // A4 height in mm
+    this.showPrices = true // NEW
+
+    // Constantes de layout (mm) - conforme especificação
+    this.LAYOUT = {
+      row: 4.6,             // altura padrão por linha
+      rowTight: 3.8,        // linhas mais "juntas" (endereço/local)
+      labelW: { left: 32, right: 32 }, // largura FIXA do rótulo por coluna
+      valueGap: 1.6,        // respiro após o rótulo
+      colPadX: 5,           // padding interno da coluna
+      wrap: 60,             // quebra padrão
+      wrapWide: 90,         // quebra p/ campos longos (Endereço/Local)
+    };
+
+    // 🎯 TOKENS DE LAYOUT (mm) - Centralizados para fácil ajuste
+    this.SPACE = {
+      marginX: 20,
+      sectionTop: 2,
+      sectionBottom: 4,
+      titleHeight: 8,
+      row: 4.6,
+      rowTight: 3.8,
+      rowLoose: 5.0,
+      gutter: 18,
+      labelGap: 16,
+      wrapWidth: 90,
+      afterTitle: 4,
+      titleTextOffset: 0.26
+    }
+
+    // Inicialização padrão - será recalculado em _recomputeLayout
     this.margin = 20
-    this.contentWidth = 170 // 210 - 40 (margins)
+    this.contentWidth = 170
+    this.COL = {
+      leftX: 25,
+      rightX: 110,
+      width: 85
+    }
+  }
+
+  // Recalcula layout após inicialização do documento
+  _recomputeLayout() {
+    if (!this.doc) return
+
+    const pageW = this.doc.internal.pageSize.getWidth()
+    this.contentWidth = pageW - (this.margin * 2)
+
+    this.COL = {
+      leftX: this.margin + this.LAYOUT.colPadX,
+      rightX: this.margin + (this.contentWidth / 2) + this.LAYOUT.colPadX,
+      width: this.contentWidth / 2
+    }
+  }
+
+  // 🔧 HELPERS REUTILIZÁVEIS
+  _moveY(mm) {
+    this.currentY += mm
+  }
+
+  _drawTitleBar(text, color = [76, 175, 80]) {
+    this._checkPageBreak(this.SPACE.sectionTop + this.SPACE.titleHeight + 2);
+    this._moveY(this.SPACE.sectionTop);
+
+    this.doc.setFillColor(...color);
+    this.doc.rect(this.SPACE.marginX, this.currentY, this.contentWidth, this.SPACE.titleHeight, 'F');
+
+    this.doc.setTextColor(0, 0, 0);
+    this.doc.setFont('Roboto-Bold', 'bold');
+    this.doc.setFontSize(11);
+
+    const leftX = this.SPACE.marginX + 5;
+    const midY = this.currentY + (this.SPACE.titleHeight / 2) + 0.5;
+    this.doc.text(text, leftX, midY, { baseline: 'middle' });
+
+    this._moveY(this.SPACE.titleHeight);
+    this._moveY(this.SPACE.afterTitle);
+
+    this.doc.setTextColor(0, 0, 0);
+    this.doc.setFont('Roboto-Regular', 'normal');
+    this.doc.setFontSize(9);
+  }
+
+  // === Banner reutilizável (TOTAL / SUBTOTAIS) ===
+  _drawTotalBanner(label, value, color = [76, 175, 80]) {
+    const isNum = typeof value === 'number';
+    const amount = isNum ? this._formatCurrency(value) : String(value || 'R$ 0,00');
+    const text = `${label.toUpperCase()}: ${amount}`;
+
+    const H = 7.2;                      // retângulo baixo (estilo antigo)
+    this._checkPageBreak(H + 6);
+
+    const x = this.SPACE.marginX;
+    const w = this.contentWidth;
+    const y = this.currentY + 2;        // pouco respiro acima
+
+    // fundo retangular (sem cantos arredondados)
+    this.doc.setFillColor(...color);
+    this.doc.rect(x, y, w, H, 'F');
+
+    // texto à direita, centralizado verticalmente
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(12);
+    this.doc.setTextColor(0, 0, 0);
+    this.doc.text(text, x + w - 8, y + H / 2, { align: 'right', baseline: 'middle' });
+
+    this.currentY = y + H + 4;
+  }
+
+
+  // Cores dos banners (ajuste se quiser)
+  _drawBanner(text, fillColor, {
+    align = 'right',   // 'right' | 'left' | 'center'
+    height = 12,       // altura do banner (mm)
+    radius = 6,        // cantos arredondados
+    marginTop = 2,     // espaço antes
+    marginBottom = 4,  // espaço depois
+    fontSize = 13,
+    fontStyle = 'bold'
+  } = {}) {
+    const doc = this.doc;
+    const M = this.SPACE.marginX;
+    const W = doc.internal.pageSize.getWidth() - (M * 2);
+
+    // margens superiores
+    this.currentY += marginTop;
+
+    // retângulo
+    doc.setFillColor(...fillColor);
+    doc.roundedRect(M, this.currentY, W, height, radius, radius, 'F');
+
+    // texto (preto, alinhado à direita por padrão)
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', fontStyle);
+    doc.setFontSize(fontSize);
+
+    const cx = (align === 'center') ? (M + W / 2) : (align === 'right' ? (M + W - 8) : (M + 8));
+    const opts = { align: (align === 'center') ? 'center' : (align === 'right' ? 'right' : 'left') };
+
+    // centralização vertical “na mão”
+    const yText = this.currentY + (height / 2) + 3.2;
+    doc.text(String(text), cx, yText, opts);
+
+    // avança o cursor depois do banner
+    this.currentY += height + marginBottom;
+  }
+
+  _drawSubtotalBanner(label, value, fillColor, opts = {}) {
+    const txt = `${label}: ${value}`;
+    this._drawBanner(txt, fillColor, { align: 'right', height: 12, marginTop: 2, marginBottom: 6, fontSize: 12, ...opts });
+  }
+
+
+  _textRow(label, value, x, y, wrapWidth = this.SPACE.wrapWidth, rowHeight = this.SPACE.row) {
+    if (value === undefined || value === null || value === '') return y
+
+    this.doc.setFont('Roboto-Bold', 'bold')
+    this.doc.text(label + ':', x, y)
+
+    this.doc.setFont('Roboto-Regular', 'normal')
+    const lines = Array.isArray(value) ? value : this.doc.splitTextToSize(String(value), wrapWidth)
+    this.doc.text(lines, x + this.SPACE.labelGap, y)
+
+    const blockHeight = Math.max(rowHeight, lines.length * (rowHeight - 1))
+    return y + blockHeight
+  }
+
+  _estimateBlockHeight(text, lineHeight = this.SPACE.row, wrapWidth = this.SPACE.wrapWidth) {
+    if (!text) return lineHeight
+    const lines = this.doc.splitTextToSize(String(text), wrapWidth)
+    return Math.max(lineHeight, lines.length * (lineHeight - 1))
   }
 
   async initialize() {
     try {
-      // Criar documento PDF
-      this.doc = new jsPDF('portrait', 'mm', 'a4')
-      
-      // Registrar fontes Roboto
+      this.doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+
+      this._recomputeLayout()
       registerRobotoFonts(this.doc)
-      
-      // Carregar assets (logo, etc.)
       this.assets = await setupPDFAssets(this.doc)
-      
-      console.log('✅ PDF Generator inicializado')
+
       return true
     } catch (error) {
       console.error('❌ Erro ao inicializar PDF Generator:', error)
-      // Continuar sem assets se houver erro
       this.assets = { logo: null, fontsLoaded: false }
       return false
     }
@@ -40,54 +206,59 @@ class PDFGenerator {
     }
 
     try {
-      console.log('📄 Gerando PDF com dados:', pdfData)
+      // resiliente a 'false' string
+      const sp = pdfData?.display?.show_prices
+      this.showPrices =
+        !(sp === false || (typeof sp === 'string' && sp.toLowerCase() === 'false') || sp === 0 || sp === '0')
 
-      // Cabeçalho (sem ID da proposta)
+      // LOG TEMPORÁRIO PARA DEBUG
+      console.log('🔍 DEBUG this.showPrices:', this.showPrices);
+      console.log('🔍 DEBUG pdfData.display.show_prices:', pdfData?.display?.show_prices);
+
+      // Cabeçalho
       this._addHeader(pdfData)
-      
-      // Remover seção de cliente - dados já estão no evento
-      // if (pdfData.client && pdfData.client.nome) {
-      //   this._addClientSection(pdfData.client)
-      // }
-      
-      // Dados do evento (NOVO)
-      if (pdfData.event && pdfData.event.nome) {
-        this._addEventSection(pdfData.event)
-      }
-      
-      // Dados do fornecedor + vendedor responsável
+
       if (pdfData.supplier && pdfData.supplier.nome) {
         this._addSupplierSection(pdfData.supplier)
       }
-      
-      // Itens (renomeado de Produtos/Serviços) - com tabela formatada
-      this._addItemsSection(pdfData.items || [], 'Itens')
-      
-      // Insumos (manter como está - já funciona perfeitamente)
-      this._addItemsSection(pdfData.supplies || [], 'Insumos')
-      
-      // Opcionais (sempre mostrar tabela formatada, mesmo se vazia)
-      console.log('🔍 PDF Generator - Opcionais recebidos:', pdfData.optionals)
-      console.log('🔍 PDF Generator - Tipo dos opcionais:', typeof pdfData.optionals, Array.isArray(pdfData.optionals))
-      console.log('🔍 PDF Generator - Quantidade de opcionais:', pdfData.optionals?.length || 0)
-      this._addItemsSection(pdfData.optionals || [], 'Opcionais Não Inclusos')
-      
-      // Totais detalhados (manter como está - já está profissional)
-      this._addDetailedTotalsSection(pdfData.totals, pdfData.optionals)
-      
-      // Condições e políticas (manter como está - já funciona)
+      if (pdfData.event && pdfData.event.nome) {
+        this._addEventSection(pdfData.event)
+      }
+
+      // Tabelas + banners de subtotal - MANTENDO OS TÍTULOS ATUAIS
+      this._addItemsSection(pdfData.items || [], 'Prestações de Serviço', 'SUBTOTAL PRESTAÇÕES DE SERVIÇO', pdfData.totals?.subtotal_itens_formatted);
+      this._addItemsSection(pdfData.supplies || [], 'Insumos', 'SUBTOTAL INSUMOS', pdfData.totals?.subtotal_insumos_formatted);
+
+
+      const optionals = Array.isArray(pdfData.optionals) ? pdfData.optionals : [];
+      if (optionals.length > 0) {
+        this._addItemsSection(
+          optionals,
+          'Opcionais Não Inclusos',
+          'SUBTOTAL OPCIONAIS NÃO INCLUSOS',
+          pdfData.totals?.subtotal_opcionais_formatted
+        );
+      }
+      // TOTAL GERAL (apenas o banner)
+      this._addDetailedTotalsSection(pdfData.totals, pdfData.optionals);
+
+      // Condições e política
       if (pdfData.texts?.conditions) {
-        this._addFormattedTextSection('Condições Gerais', pdfData.texts.conditions)
+        this._addGreySection('Condições Gerais', pdfData.texts.conditions);
       }
-      
       if (pdfData.texts?.policy) {
-        this._addFormattedTextSection('Política de Contratação', pdfData.texts.policy)
+        this._addGreySection('Política de Contratação', pdfData.texts.policy);
       }
-      
-      // Rodapé
+
+      // Faixa de aceite/assinatura
+      this._addAcceptanceBand(
+        pdfData.supplier?.nome,
+        `São Paulo, dia ${pdfData.metadata?.data_criacao || ''}`
+      );
+
+      // Rodapé (número de páginas)
       this._addFooter(pdfData)
-      
-      console.log('✅ PDF gerado com sucesso')
+
       return this.doc
 
     } catch (error) {
@@ -97,49 +268,36 @@ class PDFGenerator {
   }
 
   _addHeader(pdfData) {
-    // Logo com tamanho corrigido (menos comprimida)
     if (this.assets?.logo) {
-      // Aumentar altura para evitar compressão
-      this.doc.addImage(this.assets.logo, 'PNG', this.margin, this.margin, 40, 20)
+      this.doc.addImage(this.assets.logo, 'PNG', this.SPACE.marginX, this.SPACE.marginX, 40, 20)
     }
 
-    // Título
     this.doc.setFontSize(20)
     this.doc.setFont('helvetica', 'bold')
-    this.doc.text('PROPOSTA COMERCIAL', this.margin + 50, this.margin + 12)
+    this.doc.text('PROPOSTA COMERCIAL', this.SPACE.marginX + 50, this.SPACE.marginX + 12)
 
-    // Data (removido ID da proposta)
-    this.doc.setFontSize(12)
-    this.doc.setFont('helvetica', 'normal')
-    this.doc.text(`Data: ${pdfData.metadata.data_criacao}`, this.margin + 50, this.margin + 22)
-
-    this.currentY = this.margin + 40
+    this.currentY = this.SPACE.marginX + 34
   }
 
   _addClientSection(client) {
     this._checkPageBreak(60)
-    
-    // Título da seção com fundo verde
-    this.doc.setFillColor(76, 175, 80) // Verde similar ao modelo
+    this.doc.setFillColor(76, 175, 80)
     this.doc.setTextColor(255, 255, 255)
     this.doc.setFont('Roboto-Bold', 'bold')
     this.doc.setFontSize(12)
     this.doc.rect(20, this.currentY, 170, 8, 'F')
     this.doc.text('DADOS DO CLIENTE', 22, this.currentY + 5.5)
-    
+
     this.currentY += 12
-    
-    // Configurar texto preto para o conteúdo
+
     this.doc.setTextColor(0, 0, 0)
     this.doc.setFont('Roboto-Regular', 'normal')
     this.doc.setFontSize(10)
-    
-    // Layout em duas colunas
+
     const leftColumn = 22
     const rightColumn = 110
     let currentRow = this.currentY
-    
-    // Coluna esquerda
+
     if (client?.nome) {
       this.doc.setFont('Roboto-Bold', 'bold')
       this.doc.text('Nome:', leftColumn, currentRow)
@@ -147,7 +305,7 @@ class PDFGenerator {
       this.doc.text(client.nome, leftColumn + 15, currentRow)
       currentRow += 6
     }
-    
+
     if (client?.cnpj_cpf) {
       this.doc.setFont('Roboto-Bold', 'bold')
       this.doc.text('CNPJ/CPF:', leftColumn, currentRow)
@@ -155,20 +313,18 @@ class PDFGenerator {
       this.doc.text(client.cnpj_cpf, leftColumn + 25, currentRow)
       currentRow += 6
     }
-    
+
     if (client?.endereco) {
       this.doc.setFont('Roboto-Bold', 'bold')
       this.doc.text('Endereço:', leftColumn, currentRow)
       this.doc.setFont('Roboto-Regular', 'normal')
-      // Quebrar endereço se for muito longo
       const enderecoLines = this.doc.splitTextToSize(client.endereco, 65)
       this.doc.text(enderecoLines, leftColumn + 22, currentRow)
       currentRow += (enderecoLines.length * 5)
     }
-    
-    // Coluna direita (resetar posição)
+
     currentRow = this.currentY
-    
+
     if (client?.telefone) {
       this.doc.setFont('Roboto-Bold', 'bold')
       this.doc.text('Telefone:', rightColumn, currentRow)
@@ -185,390 +341,420 @@ class PDFGenerator {
       currentRow += 6
     }
 
-    // Atualizar posição Y para a maior das duas colunas + margem
     this.currentY = Math.max(this.currentY + 30, currentRow + 10)
   }
 
   _addSupplierSection(supplier) {
-    console.log('📋 Adicionando seção do fornecedor:', supplier)
-    
-    this._checkPageBreak(80)
-    
-    // Título da seção com fundo verde (IGUAL AO DADOS DO EVENTO)
-    this.doc.setFillColor(76, 175, 80) // Verde similar ao modelo
-    this.doc.setTextColor(255, 255, 255)
-    this.doc.setFont('Roboto-Bold', 'bold')
-    this.doc.setFontSize(12)
-    this.doc.rect(20, this.currentY, 170, 8, 'F')
-    this.doc.text('DADOS DO FORNECEDOR', 22, this.currentY + 5.5)
-    
-    this.currentY += 12
-    
-    // Configurar texto preto para o conteúdo (IGUAL AO DADOS DO EVENTO)
-    this.doc.setTextColor(0, 0, 0)
-    this.doc.setFont('Roboto-Regular', 'normal')
-    this.doc.setFontSize(10)
-    
-    // Layout em duas colunas IGUAL AO DADOS DO EVENTO
-    const leftColumn = 22
-    const rightColumn = 110
-    let currentRow = this.currentY
-    
-    // EMPRESA (Coluna Esquerda)
-    this.doc.setFont('Roboto-Bold', 'bold')
-    this.doc.text('EMPRESA:', leftColumn, currentRow)
-    currentRow += 6
-    
-    // Nome da empresa
-    if (supplier.nome) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Nome:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(supplier.nome, leftColumn + 15, currentRow)
-      currentRow += 6
-    }
-    
-    if (supplier.cnpj) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('CNPJ:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(supplier.cnpj, leftColumn + 15, currentRow)
-      currentRow += 6
-    }
-    
-    if (supplier.endereco) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Endereço:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      const enderecoLines = this.doc.splitTextToSize(supplier.endereco, 65)
-      this.doc.text(enderecoLines, leftColumn + 22, currentRow)
-      currentRow += (enderecoLines.length * 6)
-    }
-    
-    if (supplier.telefone) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Telefone:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(supplier.telefone, leftColumn + 22, currentRow)
-      currentRow += 6
-    }
-    
-    if (supplier.email) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Email:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(supplier.email, leftColumn + 15, currentRow)
-    }
-    
-    // VENDEDOR RESPONSÁVEL (Coluna Direita) - resetar posição igual ao DADOS DO EVENTO
-    currentRow = this.currentY
-    
-    this.doc.setFont('Roboto-Bold', 'bold')
-    this.doc.text('RESPONSÁVEL:', rightColumn, currentRow)
-    currentRow += 6
-    
-    if (supplier.vendedor) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Nome:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(supplier.vendedor.nome || 'Não informado', rightColumn + 15, currentRow)
-      currentRow += 6
-      
-      if (supplier.vendedor.email) {
-        this.doc.setFont('Roboto-Bold', 'bold')
-        this.doc.text('E-mail:', rightColumn, currentRow)
-        this.doc.setFont('Roboto-Regular', 'normal')
-        this.doc.text(supplier.vendedor.email, rightColumn + 18, currentRow)
-        currentRow += 6
+    const fornecedorRows = [
+      {
+        left: { label: 'Razão Social', value: supplier.nome },
+        right: { label: 'Responsável', value: supplier.vendedor?.nome }
+      },
+      {
+        left: { label: 'Endereço', value: supplier.endereco, line: this.LAYOUT.rowTight },
+        right: { label: 'CNPJ', value: supplier.cnpj, line: this.LAYOUT.rowTight }
+
+      },
+      {
+        left: { label: 'Telefone', value: supplier.telefone },
+        right: { label: 'E-mail', value: supplier.email }
       }
-      
-      if (supplier.vendedor.telefone) {
-        this.doc.setFont('Roboto-Bold', 'bold')
-        this.doc.text('Telefone:', rightColumn, currentRow)
-        this.doc.setFont('Roboto-Regular', 'normal')
-        this.doc.text(supplier.vendedor.telefone, rightColumn + 22, currentRow)
-        currentRow += 6
-      }
-    } else {
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text('Vendedor não informado', rightColumn, currentRow)
-    }
-    
-    // Atualizar posição Y IGUAL AO DADOS DO EVENTO
-    this.currentY = Math.max(this.currentY + 36, currentRow + 10)
+    ];
+    this.addDataSectionPairs('DADOS DO FORNECEDOR', [46, 154, 213], fornecedorRows);
   }
 
-  _addItemsSection(items, title) {
-    console.log(`🔍 Adicionando seção: ${title}`)
-    console.log(`🔍 Itens recebidos:`, items)
-    console.log(`🔍 Quantidade de itens:`, items?.length)
-    
-    this._checkPageBreak(50)
-    
-    // 🔥 ADICIONAR ESPAÇAMENTO EXTRA ANTES DO TÍTULO
-    this.currentY += 5 // Espaço adicional antes do título
-    
-    this.doc.setFontSize(14)
-    this.doc.setFont('helvetica', 'bold')
-    this.doc.text(title, this.margin, this.currentY)
-    this.currentY += 12 // 🔥 AUMENTADO DE 10 PARA 12
+  _addEventSection(event) {
+    const eventoRows = [
+      {
+        left: { label: 'Evento', value: event.nome, line: this.LAYOUT.rowTight },
+        right: { label: 'Local', value: event.local, line: this.LAYOUT.rowTight }
+      },
+      {
+        left: { label: 'Participantes', value: event.participantes },
+        right: { label: 'Tipo de evento', value: event.tipo }
+      },
+      {
+        left: { label: 'Data de Início', value: event.data_inicio },
+        right: { label: 'Data de Fim', value: event.data_fim }
+      },
+      {
+        left: { label: 'Horário de Início', value: event.horario_inicio },
+        right: { label: 'Horário de Fim', value: event.horario_fim }
+      },
+      {
+        left: { label: 'Empresa', value: event.empresa_contratante },
+        right: { label: 'Telefone', value: event.telefone }
+      },
+      {
+        left: { label: 'Solicitante', value: event.solicitante },
+        right: { label: 'E-mail', value: event.email }
+      }
+    ];
+    this.addDataSectionPairs('DADOS DO EVENTO', [76, 175, 80], eventoRows);
+  }
 
-    // Se não houver itens, mostrar mensagem
+  // helper: corta texto para caber em uma única linha (com "…")
+  _fitOneLine(text, maxWidth) {
+    const doc = this.doc;
+    let s = String(text || '').trim();
+    if (!s) return '';
+    while (doc.getTextWidth(s) > maxWidth && s.length > 1) {
+      s = s.slice(0, -1);
+    }
+    return s !== String(text).trim() ? (s.slice(0, -1) + '…') : s;
+  }
+
+  _addItemsSection(items, title, subtotalLabel, subtotalValue) {
+    this._checkPageBreak(28);
+
+    const doc = this.doc;
+    const M = this.SPACE.marginX;
+    const pageW = doc.internal.pageSize.getWidth();
+    const tableW = pageW - (M * 2);
+
+    // Visual dos banners + tabela (compacto)
+    const TITLE_H = 7.2;     // altura do banner do título (retângulo baixo)
+    const SUB_H = 7.2;     // altura do banner do subtotal (mesma do título)
+    const BANNER_FS = 11;      // fonte dos banners
+    const ROW_H = 10.2;    // linhas do corpo (compactas)
+    const HEAD_H = 8.6;     // cabeçalho compacto
+    const PAD_X = 2, PAD_Y = 1.2;
+    const NAME_FS = 9.6, DESC_FS = 8.7, DESC_COLOR = [100, 100, 100];
+
+    // cores
+    const isServicos = /servi[cç]o/i.test(title);
+
+    const titleColor = [66, 133, 244]; // título da seção (laranja p/ serviços, azul p/ demais)
+    const subtotalColor = [214, 124, 28];                             // SEMPRE laranja nos subtotais
+    const headColor = [52, 144, 220];                             // SEMPRE laranja nos subtotais
+
+    
+
+    // ====== BANNER TÍTULO (retângulo; texto à esquerda, centralizado) ======
+    const TITLE_GAP = 0.2; // distância entre o banner do título e o início da tabela
+    let y = this.currentY;
+
+    doc.setFillColor(...titleColor);
+    doc.rect(M, y, tableW, TITLE_H, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(BANNER_FS);
+    doc.setTextColor(0, 0, 0);
+
+    // centralização vertical precisa (sem “offset” manual)
+    doc.text(String(title), M + 8, y + TITLE_H / 2, { align: 'left', baseline: 'middle' });
+
+    // a tabela começa logo abaixo do banner, com o mesmo gap do subtotal
+    this.currentY = y + TITLE_H + TITLE_GAP;
+
+
+    // ===== sem itens?
     if (!items || items.length === 0) {
-      console.log(`⚠️ Nenhum item encontrado para ${title}`)
-      this.doc.setFontSize(10)
-      this.doc.setFont('helvetica', 'italic')
-      this.doc.text(`Nenhum item em ${title.toLowerCase()}`, this.margin, this.currentY)
-      this.currentY += 15
-      return
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+      doc.text(`Nenhum item em ${title.toLowerCase()}`, M, this.currentY);
+      this._moveY(8);
+      return;
     }
 
-    console.log(`✅ Processando ${items.length} itens para ${title}`)
+    // ===== cabeçalho/colunas
+    const head = this.showPrices ? [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']] : [['Item', 'Qtd']];
 
-    // Detectar tipo de seção baseado no título e campos disponíveis
-    const isItems = title === 'Itens'
-    const isOptionals = title === 'Opcionais Não Inclusos'
-    const isSupplies = title === 'Insumos'
-
-    let tableData, headers, columnStyles
-
-    if (isItems) {
-      // Tabela para ITENS - Larguras drasticamente reduzidas
-      tableData = items.map(item => [
-        {
-          content: `${item.codigo || item.name || ''}\n${item.descricao || item.description || ''}`,
-          styles: { 
-            fontStyle: 'normal',
-            lineHeight: 1.2
-          }
-        },
-        item.quantidade?.toString() || '0',
-        item.valor_unitario_formatted || 'R$ 0,00',
-        item.subtotal_formatted || 'R$ 0,00'
-      ])
-      headers = [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']]
-      columnStyles = {
-        0: { 
-          cellWidth: 70, // 🔥 REDUZIDO DE 85 PARA 70
-          valign: 'top',
-          fontSize: 8, // 🔥 REDUZIDO DE 9 PARA 8
-          lineHeight: 1.1
-        },
-        1: { cellWidth: 15, halign: 'center', fontSize: 8 }, // 🔥 REDUZIDO DE 18 PARA 15
-        2: { cellWidth: 25, halign: 'right', fontSize: 8 },  // 🔥 REDUZIDO DE 30 PARA 25
-        3: { cellWidth: 25, halign: 'right', fontSize: 8 }   // 🔥 REDUZIDO DE 30 PARA 25
+    const columnStyles = this.showPrices
+      ? {
+        0: { cellWidth: tableW * 0.50, halign: 'left', valign: 'middle' },
+        1: { cellWidth: tableW * 0.11, halign: 'center', valign: 'middle' },
+        2: { cellWidth: tableW * 0.195, halign: 'right', valign: 'middle' },
+        3: { cellWidth: tableW * 0.195, halign: 'right', valign: 'middle' },
       }
-    } else if (isOptionals) {
-      // Tabela para OPCIONAIS - Larguras drasticamente reduzidas
-      tableData = items.map(item => [
-        {
-          content: `${item.codigo || item.name || ''}\n${item.descricao || item.description || ''}`,
-          styles: { 
-            fontStyle: 'normal',
-            lineHeight: 1.2
-          }
-        },
-        item.quantidade?.toString() || '0',
-        item.valor_unitario_formatted || 'R$ 0,00',
-        item.subtotal_formatted || 'R$ 0,00'
-      ])
-      headers = [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']]
-      columnStyles = {
-        0: { 
-          cellWidth: 70, // 🔥 REDUZIDO DE 85 PARA 70
-          valign: 'top',
-          fontSize: 8, // 🔥 REDUZIDO DE 9 PARA 8
-          lineHeight: 1.1
-        },
-        1: { cellWidth: 15, halign: 'center', fontSize: 8 }, // 🔥 REDUZIDO DE 18 PARA 15
-        2: { cellWidth: 25, halign: 'right', fontSize: 8 },  // 🔥 REDUZIDO DE 30 PARA 25
-        3: { cellWidth: 25, halign: 'right', fontSize: 8 }   // 🔥 REDUZIDO DE 30 PARA 25
-      }
-    } else {
-      // Tabela para INSUMOS - Larguras drasticamente reduzidas
-      tableData = items.map(item => [
-        {
-          content: `${item.codigo || item.name || ''}\n${item.descricao || item.description || ''}`,
-          styles: { 
-            fontStyle: 'normal',
-            lineHeight: 1.2
-          }
-        },
-        item.quantidade?.toString() || '0',
-        item.valor_unitario_formatted || 'R$ 0,00',
-        item.subtotal_formatted || 'R$ 0,00'
-      ])
-      headers = [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']]
-      columnStyles = {
-        0: { 
-          cellWidth: 70, // 🔥 REDUZIDO DE 85 PARA 70
-          valign: 'top',
-          fontSize: 8, // 🔥 REDUZIDO DE 9 PARA 8
-          lineHeight: 1.1
-        },
-        1: { cellWidth: 15, halign: 'center', fontSize: 8 }, // 🔥 REDUZIDO DE 18 PARA 15
-        2: { cellWidth: 25, halign: 'right', fontSize: 8 },  // 🔥 REDUZIDO DE 30 PARA 25
-        3: { cellWidth: 25, halign: 'right', fontSize: 8 }   // 🔥 REDUZIDO DE 30 PARA 25
-      }
-    }
+      : {
+        0: { cellWidth: tableW * 0.82, halign: 'left', valign: 'middle' },
+        1: { cellWidth: tableW * 0.18, halign: 'center', valign: 'middle' },
+      };
 
-    // Gerar tabela com configurações simplificadas
-    this.doc.autoTable({
-      head: headers,
-      body: tableData,
+    // ===== dados + subtotal para modo sem preços
+    let subtotalSum = 0;
+    const tableData = items.map(it => {
+      const name = String(it.codigo || it.name || it.product_name || it.titulo || it.item_name || '-').trim();
+      const desc = String(it.descricao || it.description || it.product_description || '').trim();
+      const qty = Number(it.quantidade ?? it.qtd ?? it.qtde ?? 0) || 0;
+
+      if (!this.showPrices) {
+        const unitRaw = it.valor_unitario ?? it.price ?? it.unit_price ?? 0;
+        const unitNum = this._parseCurrencyToNumber(unitRaw);
+        subtotalSum += qty * (Number.isFinite(unitNum) ? unitNum : 0);
+        return [{ name, desc }, String(qty)];
+      }
+
+      const unitRaw =
+        it.valor_unitario ?? it.unitario ?? it.preco_unitario ??
+        it.valor ?? it.valor_unitario_value ?? it.unit_value ?? it.valorUnitario;
+      const unitNum = this._parseCurrencyToNumber(unitRaw);
+
+      const subtotalProvided = it.subtotal ?? it.sub_total ?? it.subtotal_value ?? it.total ?? it.total_value;
+      const subtotalNum = (subtotalProvided != null && subtotalProvided !== '')
+        ? this._parseCurrencyToNumber(subtotalProvided)
+        : (qty * unitNum);
+
+      const unitDisplay = it.valor_unitario_formatted ??
+        (typeof unitRaw === 'string' && unitRaw.trim() ? unitRaw : this._formatCurrency(unitNum));
+      const subtotalDisplay = it.subtotal_formatted ?? this._formatCurrency(subtotalNum);
+
+      return [{ name, desc }, String(qty), unitDisplay, subtotalDisplay];
+    });
+
+    // ===== tabela
+    doc.autoTable({
       startY: this.currentY,
-      columnStyles: columnStyles,
+      head,
+      body: tableData,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        lineWidth: 0.1,
+        cellPadding: { top: PAD_Y, right: PAD_X, bottom: PAD_Y, left: PAD_X },
+        minCellHeight: ROW_H,
+        valign: 'middle'
+      },
       headStyles: {
-        fillColor: [52, 144, 220],
+        fillColor: titleColor,
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 9, // 🔥 REDUZIDO DE 10 PARA 9
-        halign: 'center'
+        halign: 'center',
+        valign: 'middle',
+        cellPadding: { top: 1.0, right: 1.4, bottom: 1.0, left: 1.4 },
+        minCellHeight: HEAD_H,
       },
-      bodyStyles: {
-        fontSize: 8, // 🔥 REDUZIDO DE 9 PARA 8
-        cellPadding: 2, // 🔥 REDUZIDO DE 3 PARA 2
-        valign: 'top',
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1
+      columnStyles,
+      didParseCell: (data) => {
+        // 1ª coluna (nome+descrição) desenhada manualmente
+        if (data.section === 'body' && data.column.index === 0 && typeof data.cell.raw === 'object') {
+          data.cell.text = '';
+          data.cell.styles.minCellHeight = ROW_H;
+        }
       },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245]
-      },
-      margin: { left: 20, right: 20 },
-      // 🔥 REMOVIDO: tableWidth e cellWidth conflitantes
-      styles: {
-        overflow: 'linebreak'
-      },
-      // 🔥 CONFIGURAÇÃO SIMPLIFICADA
-      pageBreak: 'auto',
-      showHead: 'everyPage'
-    })
+      didDrawCell: (data) => {
+        if (data.section !== 'body' || data.column.index !== 0 || typeof data.cell.raw !== 'object') return;
+        const { x, y, width, height } = data.cell;
+        const { name, desc } = data.cell.raw;
+        const maxW = width - PAD_X * 2;
 
-    this.currentY = this.doc.lastAutoTable.finalY + 15
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(NAME_FS); doc.setTextColor(0, 0, 0);
+        doc.text(this._fitOneLine(name, maxW), x + PAD_X, y + PAD_Y + 3);
+
+        if (desc) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(DESC_FS); doc.setTextColor(...DESC_COLOR);
+          doc.text(this._fitOneLine(desc, maxW), x + PAD_X, y + height - PAD_Y + 0.2);
+          doc.setTextColor(0, 0, 0);
+        }
+      },
+      margin: { left: M, right: M },
+      pageBreak: 'auto',
+      showHead: 'everyPage',
+    });
+
+    // ===== SUBTOTAL (retângulo; texto à direita, centralizado verticalmente; colado na tabela)
+    this.currentY = doc.lastAutoTable.finalY + 2;
+
+    const subY = this.currentY;
+    doc.setFillColor(...subtotalColor);
+    doc.rect(M, subY, tableW, SUB_H, 'F');
+
+    const valor = this.showPrices
+      ? (typeof subtotalValue === 'number' ? this._formatCurrency(subtotalValue) : (subtotalValue || this._formatCurrency(subtotalSum)))
+      : this._formatCurrency(subtotalSum);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(BANNER_FS);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`${subtotalLabel}: ${valor}`, M + tableW - 8, subY + SUB_H / 2, { align: 'right', baseline: 'middle' });
+
+    this.currentY = subY + SUB_H + 8;
   }
 
+
+  // === TOTAL GERAL: apenas o banner ===
   _addDetailedTotalsSection(totals, optionals) {
-    this._checkPageBreak(60)
-    
-    this.doc.setFontSize(14)
-    this.doc.setFont('helvetica', 'bold')
-    this.doc.text('RESUMO FINANCEIRO', this.margin, this.currentY)
-    this.currentY += 15
+    if (!totals) return;
+    const hasSelected = optionals && optionals.some(o => o.selecionado);
+    const totalFinal = hasSelected
+      ? (totals.total_com_opcionais_formatted || 'R$ 0,00')
+      : (totals.total_sem_opcionais_formatted || 'R$ 0,00');
 
-    this.doc.setFontSize(10)
-    this.doc.setFont('helvetica', 'normal')
+    // só o banner verde
+    this._drawTotalBanner('Total Geral', totalFinal, [76, 175, 80]);
+  }
 
-    if (totals) {
-      // Subtotal de itens
-      if (totals.subtotal_itens > 0) {
-        this.doc.text(`Subtotal Produtos/Serviços: ${totals.subtotal_itens_formatted}`, this.margin, this.currentY)
-        this.currentY += 6
-      }
+  // ===== Texto com barra cinza =====
+  _normalizeToLines(content) {
+    if (!content) return [];
+    const splitLines = s => String(s).split('\n').map(t => t.trim()).filter(Boolean);
 
-      // Subtotal de insumos
-      if (totals.subtotal_insumos > 0) {
-        this.doc.text(`Subtotal Insumos: ${totals.subtotal_insumos_formatted}`, this.margin, this.currentY)
-        this.currentY += 6
-      }
-
-      // Subtotal de opcionais (apenas se houver opcionais selecionados)
-      const hasSelectedOptionals = optionals && optionals.some(opt => opt.selecionado)
-      if (hasSelectedOptionals && totals.subtotal_opcionais > 0) {
-        this.doc.text(`Subtotal Opcionais: ${totals.subtotal_opcionais_formatted}`, this.margin, this.currentY)
-        this.currentY += 6
-      }
-
-      this.currentY += 5
-
-      // Total final
-      this.doc.setFont('helvetica', 'bold')
-      this.doc.setFontSize(12)
-      const totalFinal = hasSelectedOptionals ? totals.total_com_opcionais_formatted : totals.total_sem_opcionais_formatted
-      this.doc.text(`TOTAL GERAL: ${totalFinal}`, this.margin, this.currentY)
-      this.currentY += 20
-    } else {
-      // Fallback se não houver totais
-      this.doc.setFont('helvetica', 'italic')
-      this.doc.text('Totais não calculados', this.margin, this.currentY)
-      this.currentY += 20
+    if (Array.isArray(content)) {
+      return content.flatMap(v => (typeof v === 'string')
+        ? splitLines(v)
+        : (v && typeof v === 'object')
+          ? Object.values(v).flatMap(x => typeof x === 'string' ? splitLines(x) : [])
+          : []
+      );
     }
+
+    if (typeof content === 'object') {
+      const prefer = ['titulo', 'title', 'heading', 'conteudo', 'content', 'texto', 'text'];
+      const vals = prefer.map(k => content[k]).filter(v => typeof v === 'string' && v.trim());
+      if (vals.length) return vals.flatMap(splitLines);
+      return Object.values(content).flatMap(v => typeof v === 'string' ? splitLines(v) : []);
+    }
+
+    return splitLines(content);
+  }
+
+  _addGreySection(title, content) {
+    this._checkPageBreak(30);
+
+    const barH = 8;
+    this.doc.setFillColor(190, 190, 190);
+    this.doc.rect(this.SPACE.marginX, this.currentY, this.contentWidth, barH, 'F');
+
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(11);
+    this.doc.setTextColor(0, 0, 0);
+    this.doc.text(title, this.SPACE.marginX + 4, this.currentY + 5.5);
+
+    this._moveY(barH + 5);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(10);
+
+    const lines = this._normalizeToLines(content);
+
+    const paraLead = 5.2;
+    const bulletLead = 5.0;
+
+    for (const raw of lines) {
+      const isBullet = /^[-•]\s*/.test(raw);
+      const text = raw.replace(/^[-•]\s*/, '');
+      if (isBullet) {
+        this._bullet(text, bulletLead);
+      } else {
+        this._paragraph(text, paraLead);
+      }
+    }
+
+    this._moveY(4);
+  }
+
+  _paragraph(text, lead = 5.0) {
+    if (!text) return;
+    const lines = this.doc.splitTextToSize(text, this.contentWidth);
+    lines.forEach(l => {
+      this.doc.text(l, this.SPACE.marginX, this.currentY);
+      this._moveY(lead);
+    });
+  }
+
+  _bullet(text, lead = 5.0) {
+    const cx = this.SPACE.marginX + 2.2;
+    const cy = this.currentY - 1.5 + 1.5;
+    this.doc.circle(cx, cy, 0.8, 'F');
+
+    const lines = this.doc.splitTextToSize(text, this.contentWidth - 8);
+    this.doc.text(lines, this.SPACE.marginX + 6, this.currentY);
+    this._moveY(lead * lines.length);
+  }
+
+  // faixa de aceite/assinatura
+  _addAcceptanceBand(companyName, placeDateText) {
+    this._checkPageBreak(14);
+    const h = 8;
+    const y = this.currentY + 6;
+    const x = this.SPACE.marginX;
+    const w = this.contentWidth;
+
+    this.doc.setFillColor(220, 220, 220);
+    this.doc.rect(x, y, w, h, 'F');
+
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(9);
+    this.doc.text(`Empresa: ${companyName || '-'}`, x + 4, y + 5.5);
+
+    const right = placeDateText || '';
+    const tw = this.doc.getTextWidth(right);
+    this.doc.text(right, x + w - tw - 4, y + 5.5);
+
+    this.currentY = y + h + 2;
   }
 
   _addFormattedTextSection(title, content) {
     if (!content) return
 
-    this._checkPageBreak(30)
-    
+    const estimatedHeight = this._estimateBlockHeight(content, this.SPACE.row, this.SPACE.wrapWidth)
+    this._checkPageBreak(estimatedHeight + this.SPACE.sectionTop + this.SPACE.titleHeight)
+
+    this._moveY(this.SPACE.sectionTop)
+
     this.doc.setFontSize(14)
     this.doc.setFont('helvetica', 'bold')
-    this.doc.text(title, this.margin, this.currentY)
-    this.currentY += 10
+    this.doc.text(title, this.SPACE.marginX, this.currentY)
+    this._moveY(this.SPACE.titleHeight + 2)
 
     this.doc.setFontSize(10)
     this.doc.setFont('helvetica', 'normal')
-    
-    // Se for array de objetos estruturados
+
     if (Array.isArray(content)) {
       content.forEach(item => {
         if (item.titulo) {
-          this._checkPageBreak(15)
+          this._checkPageBreak(this.SPACE.rowLoose)
           this.doc.setFont('helvetica', 'bold')
-          this.doc.text(item.titulo, this.margin, this.currentY)
-          this.currentY += 7
+          this.doc.text(item.titulo, this.SPACE.marginX, this.currentY)
+          this._moveY(this.SPACE.rowLoose)
           this.doc.setFont('helvetica', 'normal')
         }
-        
+
         if (item.conteudo) {
-          this._checkPageBreak(10)
-          const lines = this.doc.splitTextToSize(item.conteudo, this.contentWidth)
+          const contentHeight = this._estimateBlockHeight(item.conteudo, this.SPACE.rowTight, this.SPACE.wrapWidth)
+          this._checkPageBreak(contentHeight)
+          const lines = this.doc.splitTextToSize(item.conteudo, this.SPACE.wrapWidth)
           lines.forEach(line => {
-            this._checkPageBreak(5)
-            this.doc.text(line, this.margin, this.currentY)
-            this.currentY += 5
+            this._checkPageBreak(this.SPACE.rowTight)
+            this.doc.text(line, this.SPACE.marginX, this.currentY)
+            this._moveY(this.SPACE.rowTight)
           })
-          this.currentY += 3
+          this._moveY(this.SPACE.rowTight)
         }
       })
     } else {
-      // Se for string simples
       const cleanText = content.toString().trim()
       if (cleanText) {
-        // Quebrar texto em parágrafos
         const paragraphs = cleanText.split('\n').filter(p => p.trim())
-        
+
         paragraphs.forEach(paragraph => {
           if (paragraph.trim()) {
-            this._checkPageBreak(15)
-            
-            // Quebrar parágrafo em linhas
-            const lines = this.doc.splitTextToSize(paragraph.trim(), this.contentWidth)
-            
+            const paragraphHeight = this._estimateBlockHeight(paragraph, this.SPACE.rowTight, this.SPACE.wrapWidth)
+            this._checkPageBreak(paragraphHeight)
+            const lines = this.doc.splitTextToSize(paragraph, this.SPACE.wrapWidth)
             lines.forEach(line => {
-              this._checkPageBreak(5)
-              this.doc.text(line, this.margin, this.currentY)
-              this.currentY += 5
+              this._checkPageBreak(this.SPACE.rowTight)
+              this.doc.text(line, this.SPACE.marginX, this.currentY)
+              this._moveY(this.SPACE.rowTight)
             })
-            
-            this.currentY += 3 // Espaço entre parágrafos
+            this._moveY(this.SPACE.rowTight)
           }
         })
       }
     }
 
-    this.currentY += 10
+    this._moveY(this.SPACE.sectionBottom)
   }
 
   _addFooter(pdfData) {
     const pageCount = this.doc.internal.getNumberOfPages()
-    
+
     for (let i = 1; i <= pageCount; i++) {
       this.doc.setPage(i)
       this.doc.setFontSize(8)
       this.doc.setFont('helvetica', 'normal')
       this.doc.text(
         `Página ${i} de ${pageCount}`,
-        this.doc.internal.pageSize.width - this.margin - 20,
+        this.doc.internal.pageSize.width - this.SPACE.marginX - 20,
         this.doc.internal.pageSize.height - 10
       )
     }
@@ -587,535 +773,96 @@ class PDFGenerator {
       currency: 'BRL'
     }).format(value || 0)
   }
-
-  _addEventSection(event) {
-    this._checkPageBreak(60)
-    
-    // Título da seção com fundo verde
-    this.doc.setFillColor(76, 175, 80) // Verde similar ao modelo
-    this.doc.setTextColor(255, 255, 255)
-    this.doc.setFont('Roboto-Bold', 'bold')
-    this.doc.setFontSize(12)
-    this.doc.rect(20, this.currentY, 170, 8, 'F')
-    this.doc.text('DADOS DO EVENTO', 22, this.currentY + 5.5)
-    
-    this.currentY += 12
-    
-    // Configurar texto preto para o conteúdo
-    this.doc.setTextColor(0, 0, 0)
-    this.doc.setFont('Roboto-Regular', 'normal')
-    this.doc.setFontSize(10)
-    
-    // Layout em duas colunas como no modelo antigo
-    const leftColumn = 22
-    const rightColumn = 110
-    let currentRow = this.currentY
-    
-    // Coluna esquerda
-    if (event.nome) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Evento:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.nome, leftColumn + 20, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.participantes) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Participantes:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.participantes.toString(), leftColumn + 30, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.data_inicio) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Data de Início:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.data_inicio, leftColumn + 30, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.horario_inicio) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Horário de Início:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.horario_inicio, leftColumn + 35, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.empresa_contratante) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Empresa:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.empresa_contratante, leftColumn + 22, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.solicitante) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Solicitante:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.solicitante, leftColumn + 25, currentRow)
-    }
-    
-    // Coluna direita (resetar posição)
-    currentRow = this.currentY
-    
-    if (event.local) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Local:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.local, rightColumn + 15, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.tipo) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Tipo de evento:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.tipo, rightColumn + 30, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.data_fim) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Data de Fim:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.data_fim, rightColumn + 25, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.horario_fim) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Horário de Fim:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.horario_fim, rightColumn + 30, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.telefone) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Telefone:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.telefone, rightColumn + 22, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.email) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('E-mail:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.email, rightColumn + 18, currentRow)
-    }
-    
-    // Atualizar posição Y para a maior das duas colunas + margem MAIOR
-    this.currentY = Math.max(this.currentY + 36, currentRow + 20) // 🔥 AUMENTADO DE 10 PARA 20
+  _parseCurrencyToNumber(val) {
+    if (val == null || val === '') return 0;
+    if (typeof val === 'number') return val;
+    // ex: "R$ 2.800,00" -> 2800.00
+    const n = parseFloat(
+      String(val)
+        .replace(/\s/g, '')
+        .replace(/[R$\u00A0]/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.')
+    );
+    return isNaN(n) ? 0 : n;
   }
 
-  _addItemsSection(items, title) {
-    console.log(`🔍 Adicionando seção: ${title}`)
-    console.log(`🔍 Itens recebidos:`, items)
-    console.log(`🔍 Quantidade de itens:`, items?.length)
-    
-    this._checkPageBreak(50)
-    
-    // 🔥 ADICIONAR ESPAÇAMENTO EXTRA ANTES DO TÍTULO
-    this.currentY += 5 // Espaço adicional antes do título
-    
-    this.doc.setFontSize(14)
-    this.doc.setFont('helvetica', 'bold')
-    this.doc.text(title, this.margin, this.currentY)
-    this.currentY += 12 // 🔥 AUMENTADO DE 10 PARA 12
 
-    // Se não houver itens, mostrar mensagem
-    if (!items || items.length === 0) {
-      console.log(`⚠️ Nenhum item encontrado para ${title}`)
-      this.doc.setFontSize(10)
-      this.doc.setFont('helvetica', 'italic')
-      this.doc.text(`Nenhum item em ${title.toLowerCase()}`, this.margin, this.currentY)
-      this.currentY += 15
-      return
-    }
+  // Helpers para renderização em pares de linhas
+  _drawPairRowFixed(leftCfg, rightCfg, y) {
+    const lh = this._measureFixed(leftCfg, 'left')
+    const rh = this._measureFixed(rightCfg, 'right')
+    const h = Math.max(lh, rh, this.LAYOUT.row)
 
-    console.log(`✅ Processando ${items.length} itens para ${title}`)
+    this._drawFixed(this.margin + this.LAYOUT.colPadX, leftCfg, 'left', y)
+    const rightX = this.margin + (this.contentWidth / 2) + this.LAYOUT.colPadX
+    this._drawFixed(rightX, rightCfg, 'right', y)
 
-    // Detectar tipo de seção baseado no título e campos disponíveis
-    const isItems = title === 'Itens'
-    const isOptionals = title === 'Opcionais Não Inclusos'
-    const isSupplies = title === 'Insumos'
-
-    let tableData, headers, columnStyles
-
-    if (isItems) {
-      // Tabela para ITENS - Novo formato com código e descrição vertical
-      tableData = items.map(item => [
-        {
-          content: `${item.codigo || item.name || ''}\n${item.descricao || item.description || ''}`,
-          styles: { 
-            fontStyle: 'normal',
-            lineHeight: 1.2
-          }
-        },
-        item.quantidade?.toString() || '0',
-        item.valor_unitario_formatted || 'R$ 0,00',
-        item.subtotal_formatted || 'R$ 0,00'
-      ])
-      headers = [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']]
-      columnStyles = {
-        0: { 
-          cellWidth: 100, // Mais espaço para código + descrição
-          valign: 'top',
-          fontSize: 9,
-          lineHeight: 1.2
-        },
-        1: { cellWidth: 20, halign: 'center' }, // Quantidade
-        2: { cellWidth: 25, halign: 'right' },  // Valor Unit.
-        3: { cellWidth: 25, halign: 'right' }   // Subtotal
-      }
-    } else if (isOptionals) {
-      // Tabela para OPCIONAIS - Novo formato com código e descrição vertical
-      tableData = items.map(item => [
-        {
-          content: `${item.codigo || item.name || ''}\n${item.descricao || item.description || ''}`,
-          styles: { 
-            fontStyle: 'normal',
-            lineHeight: 1.2
-          }
-        },
-        item.quantidade?.toString() || '0',
-        item.valor_unitario_formatted || 'R$ 0,00',
-        item.subtotal_formatted || 'R$ 0,00'
-      ])
-      headers = [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']]
-      columnStyles = {
-        0: { 
-          cellWidth: 100, // Mais espaço para código + descrição
-          valign: 'top',
-          fontSize: 9,
-          lineHeight: 1.2
-        },
-        1: { cellWidth: 20, halign: 'center' }, // Quantidade
-        2: { cellWidth: 25, halign: 'right' },  // Valor Unit.
-        3: { cellWidth: 25, halign: 'right' }   // Subtotal
-      }
-    } else {
-      // Tabela para INSUMOS - Novo formato com código e descrição vertical
-      tableData = items.map(item => [
-        {
-          content: `${item.codigo || item.name || ''}\n${item.descricao || item.description || ''}`,
-          styles: { 
-            fontStyle: 'normal',
-            lineHeight: 1.2
-          }
-        },
-        item.quantidade?.toString() || '0',
-        item.valor_unitario_formatted || 'R$ 0,00',
-        item.subtotal_formatted || 'R$ 0,00'
-      ])
-      headers = [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']]
-      columnStyles = {
-        0: { 
-          cellWidth: 100, // Mais espaço para código + descrição
-          valign: 'top',
-          fontSize: 9,
-          lineHeight: 1.2
-        },
-        1: { cellWidth: 20, halign: 'center' }, // Quantidade
-        2: { cellWidth: 25, halign: 'right' },  // Valor Unit.
-        3: { cellWidth: 25, halign: 'right' }   // Subtotal
-      }
-    }
-
-    // Gerar tabela com configurações padronizadas
-    this.doc.autoTable({
-      head: headers,
-      body: tableData,
-      startY: this.currentY,
-      columnStyles: columnStyles,
-      headStyles: {
-        fillColor: [52, 144, 220],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        fontSize: 10,
-        halign: 'center'
-      },
-      bodyStyles: {
-        fontSize: 9,
-        cellPadding: 3,
-        valign: 'top',
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245]
-      },
-      margin: { left: 20, right: 20 },
-      tableWidth: 'wrap',
-      styles: {
-        overflow: 'linebreak',
-        cellWidth: 'wrap'
-      }
-    })
-
-    this.currentY = this.doc.lastAutoTable.finalY + 15
+    return y + h
   }
 
-  _addDetailedTotalsSection(totals, optionals) {
-    this._checkPageBreak(60)
-    
-    this.doc.setFontSize(14)
-    this.doc.setFont('helvetica', 'bold')
-    this.doc.text('RESUMO FINANCEIRO', this.margin, this.currentY)
-    this.currentY += 15
+  _measureFixed({ label, value, wrap, line }, side) {
+    const lineH = line || this.LAYOUT.row
+    if (value == null || value === '') return 0
 
+    const colW = this.contentWidth / 2
+    const labelText = `${label}:`
+    this.doc.setFont('helvetica', 'bold')
+    const labelWidth = this.doc.getTextWidth(labelText)
+    const avail = colW - (labelWidth + this.LAYOUT.valueGap + this.LAYOUT.colPadX)
+
+    const width = Math.min(wrap || this.LAYOUT.wrap, avail)
+    const lines = this.doc.splitTextToSize(String(value), width)
+
+    return Math.max(lineH, lines.length * lineH)
+  }
+
+  drawAlignedBar(colorRGB, y, height = 8) {
+    if (!this.contentWidth || !this.margin) {
+      this._recomputeLayout?.();
+      this.margin = this.margin ?? this.SPACE?.marginX ?? 20;
+    }
+
+    const [r, g, b] = Array.isArray(colorRGB)
+      ? colorRGB
+      : [colorRGB.r, colorRGB.g, colorRGB.b];
+
+    this.doc.setFillColor(r, g, b);
+    this.doc.rect(this.margin, y, this.contentWidth, height, 'F');
+  }
+
+  _drawFixed(x, { label, value, wrap, line }, side, y) {
+    const lineH = line || this.LAYOUT.row
+
+    this.doc.setFont('helvetica', 'bold')
+    const labelText = `${label}:`
+    this.doc.text(labelText, x, y)
+    const labelWidth = this.doc.getTextWidth(labelText)
+    const valueX = x + labelWidth + this.LAYOUT.valueGap
+
+    this.doc.setFont('helvetica', 'normal')
+
+    const colW = this.contentWidth / 2
+    const avail = colW - (labelWidth + this.LAYOUT.valueGap + this.LAYOUT.colPadX)
+    const width = Math.min(wrap || this.LAYOUT.wrap, avail)
+    const lines = this.doc.splitTextToSize(String(value ?? ''), width)
+
+    this.doc.text(lines, valueX, y)
+
+    return y + Math.max(lineH, lines.length * lineH)
+  }
+
+  addDataSectionPairs(title, colorRGB, rows) {
+    this._drawTitleBar(
+      title,
+      Array.isArray(colorRGB) ? colorRGB : [colorRGB.r, colorRGB.g, colorRGB.b]
+    )
     this.doc.setFontSize(10)
     this.doc.setFont('helvetica', 'normal')
 
-    if (totals) {
-      // Subtotal de itens
-      if (totals.subtotal_itens > 0) {
-        this.doc.text(`Subtotal Produtos/Serviços: ${totals.subtotal_itens_formatted}`, this.margin, this.currentY)
-        this.currentY += 6
-      }
-
-      // Subtotal de insumos
-      if (totals.subtotal_insumos > 0) {
-        this.doc.text(`Subtotal Insumos: ${totals.subtotal_insumos_formatted}`, this.margin, this.currentY)
-        this.currentY += 6
-      }
-
-      // Subtotal de opcionais (apenas se houver opcionais selecionados)
-      const hasSelectedOptionals = optionals && optionals.some(opt => opt.selecionado)
-      if (hasSelectedOptionals && totals.subtotal_opcionais > 0) {
-        this.doc.text(`Subtotal Opcionais: ${totals.subtotal_opcionais_formatted}`, this.margin, this.currentY)
-        this.currentY += 6
-      }
-
-      this.currentY += 5
-
-      // Total final
-      this.doc.setFont('helvetica', 'bold')
-      this.doc.setFontSize(12)
-      const totalFinal = hasSelectedOptionals ? totals.total_com_opcionais_formatted : totals.total_sem_opcionais_formatted
-      this.doc.text(`TOTAL GERAL: ${totalFinal}`, this.margin, this.currentY)
-      this.currentY += 20
-    } else {
-      // Fallback se não houver totais
-      this.doc.setFont('helvetica', 'italic')
-      this.doc.text('Totais não calculados', this.margin, this.currentY)
-      this.currentY += 20
-    }
-  }
-
-  _addFormattedTextSection(title, content) {
-    if (!content) return
-
-    // 🔥 MELHORAR VERIFICAÇÃO DE QUEBRA DE PÁGINA
-    this._checkPageBreak(40) // Aumentado de 30 para 40
-    
-    // 🔥 ADICIONAR ESPAÇAMENTO EXTRA ANTES DO TÍTULO
-    this.currentY += 5 // Espaço adicional antes do título
-    
-    this.doc.setFontSize(14)
-    this.doc.setFont('helvetica', 'bold')
-    this.doc.text(title, this.margin, this.currentY)
-    this.currentY += 12 // 🔥 AUMENTADO DE 10 PARA 12
-
-    this.doc.setFontSize(10)
-    this.doc.setFont('helvetica', 'normal')
-    
-    // Se for array de objetos estruturados
-    if (Array.isArray(content)) {
-      content.forEach(item => {
-        if (item.titulo) {
-          this._checkPageBreak(20) // 🔥 AUMENTADO DE 15 PARA 20
-          this.doc.setFont('helvetica', 'bold')
-          this.doc.text(item.titulo, this.margin, this.currentY)
-          this.currentY += 8 // 🔥 AUMENTADO DE 7 PARA 8
-          this.doc.setFont('helvetica', 'normal')
-        }
-        
-        if (item.conteudo) {
-          this._checkPageBreak(15) // 🔥 AUMENTADO DE 10 PARA 15
-          const lines = this.doc.splitTextToSize(item.conteudo, this.contentWidth)
-          lines.forEach(line => {
-            this._checkPageBreak(8) // 🔥 AUMENTADO DE 5 PARA 8
-            this.doc.text(line, this.margin, this.currentY)
-            this.currentY += 6 // 🔥 AUMENTADO DE 5 PARA 6
-          })
-          this.currentY += 4 // 🔥 AUMENTADO DE 3 PARA 4
-        }
-      })
-    } else {
-      // Se for string simples
-      const cleanText = content.toString().trim()
-      if (cleanText) {
-        // Quebrar texto em parágrafos
-        const paragraphs = cleanText.split('\n').filter(p => p.trim())
-        
-        paragraphs.forEach((paragraph, index) => {
-          if (paragraph.trim()) {
-            this._checkPageBreak(20) // 🔥 AUMENTADO DE 15 PARA 20
-            
-            // Quebrar parágrafo em linhas
-            const lines = this.doc.splitTextToSize(paragraph.trim(), this.contentWidth)
-            
-            lines.forEach(line => {
-              this._checkPageBreak(8) // 🔥 AUMENTADO DE 5 PARA 8
-              this.doc.text(line, this.margin, this.currentY)
-              this.currentY += 6 // 🔥 AUMENTADO DE 5 PARA 6
-            })
-            
-            // 🔥 CORREÇÃO: Espaço entre parágrafos apenas se não for o último
-            if (index < paragraphs.length - 1) {
-              this.currentY += 4 // Aumentado de 3 para 4
-            }
-          }
-        })
-      }
-    }
-
-    this.currentY += 15 // 🔥 AUMENTADO DE 10 PARA 15 - Espaço após seção
-  }
-
-  _checkPageBreak(requiredSpace) {
-    if (this.currentY + requiredSpace > this.pageHeight - this.margin) {
-      this.doc.addPage()
-      this.currentY = this.margin + 10 // 🔥 MARGEM SUPERIOR MAIOR NA NOVA PÁGINA
-    }
-  }
-
-  _formatCurrency(value) {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value || 0)
-  }
-
-  _addEventSection(event) {
-    this._checkPageBreak(60)
-    
-    // Título da seção com fundo verde
-    this.doc.setFillColor(76, 175, 80) // Verde similar ao modelo
-    this.doc.setTextColor(255, 255, 255)
-    this.doc.setFont('Roboto-Bold', 'bold')
-    this.doc.setFontSize(12)
-    this.doc.rect(20, this.currentY, 170, 8, 'F')
-    this.doc.text('DADOS DO EVENTO', 22, this.currentY + 5.5)
-    
-    this.currentY += 12
-    
-    // Configurar texto preto para o conteúdo
-    this.doc.setTextColor(0, 0, 0)
-    this.doc.setFont('Roboto-Regular', 'normal')
-    this.doc.setFontSize(10)
-    
-    // Layout em duas colunas como no modelo antigo
-    const leftColumn = 22
-    const rightColumn = 110
-    let currentRow = this.currentY
-    
-    // Coluna esquerda
-    if (event.nome) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Evento:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.nome, leftColumn + 20, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.participantes) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Participantes:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.participantes.toString(), leftColumn + 30, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.data_inicio) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Data de Início:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.data_inicio, leftColumn + 30, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.horario_inicio) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Horário de Início:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.horario_inicio, leftColumn + 35, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.empresa_contratante) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Empresa:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.empresa_contratante, leftColumn + 22, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.solicitante) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Solicitante:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.solicitante, leftColumn + 25, currentRow)
-    }
-    
-    // Coluna direita (resetar posição)
-    currentRow = this.currentY
-    
-    if (event.local) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Local:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.local, rightColumn + 15, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.tipo) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Tipo de evento:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.tipo, rightColumn + 30, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.data_fim) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Data de Fim:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.data_fim, rightColumn + 25, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.horario_fim) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Horário de Fim:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.horario_fim, rightColumn + 30, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.telefone) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('Telefone:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.telefone, rightColumn + 22, currentRow)
-      currentRow += 6
-    }
-    
-    if (event.email) {
-      this.doc.setFont('Roboto-Bold', 'bold')
-      this.doc.text('E-mail:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
-      this.doc.text(event.email, rightColumn + 18, currentRow)
-    }
-    
-    // Atualizar posição Y para a maior das duas colunas + margem MAIOR
-    this.currentY = Math.max(this.currentY + 36, currentRow + 20) // 🔥 AUMENTADO DE 10 PARA 20
+    let y = this.currentY + 0.8
+    for (const row of rows) y = this._drawPairRowFixed(row.left, row.right, y)
+    this.currentY = y + this.SPACE.sectionBottom
   }
 }
 

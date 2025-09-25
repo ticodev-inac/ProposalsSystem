@@ -800,7 +800,15 @@
                   <span class="checkmark"></span>
                   Incluir opcionais no total
                 </label>
+                
+                <!-- Exibir/ocultar preços no PDF -->
+                <label class="checkbox-label" style="margin-top:8px">
+                  <input type="checkbox" v-model="form.exibir_precos">
+                  <span class="checkmark"></span>
+                  Exibir preços (Valor Unit. e Subtotal) no PDF
+                </label>
               </div>
+
 
               <!-- Resumo por Categoria -->
               <div class="totals-breakdown">
@@ -1165,7 +1173,8 @@ export default {
       total_geral: 0,
       items: [],
       insumos: [],
-      opcionais: []
+      opcionais: [],
+      exibir_precos: true // NEW
     })
 
 
@@ -1217,7 +1226,8 @@ export default {
         total_geral: 0,
         items: [],
         insumos: [],
-        opcionais: []
+        opcionais: [],
+        exibir_precos: true // NEW
       }
       activeTab.value = 'basic'
     }
@@ -1515,6 +1525,15 @@ export default {
         loadSuppliers()
       }
       
+      // Carregar exibir_precos com fallback para campos legados
+      form.value.exibir_precos = (
+        proposal.exibir_precos ?? 
+        proposal.incluir_v_un_itens ?? 
+        proposal.incluir_v_un_insumos ?? 
+        proposal.incluir_v_un_opcionais ?? 
+        true
+      )
+      
       activeTab.value = 'basic'
       showModal.value = true
       loadClients()
@@ -1645,6 +1664,12 @@ export default {
         total_observations: totalObservations.value || '',
         observations: form.value.observations || '', // Campo adicional que existe
         
+        // NEW: campo principal e compatibilidade
+        exibir_precos: form.value.exibir_precos,       // NEW
+        incluir_v_un_itens: form.value.exibir_precos,  // NEW - compatibilidade
+        incluir_v_un_insumos: form.value.exibir_precos,// NEW - compatibilidade
+        incluir_v_un_opcionais: form.value.exibir_precos, // NEW - compatibilidade
+        
         updated_at: new Date().toISOString(),
         user_id: userId
       }
@@ -1669,9 +1694,10 @@ export default {
       'phone',
       'email',
       'incluir_opcionais',
-      'incluir_v_un_itens',
-      'incluir_v_un_insumos',
-      'incluir_v_un_opcionais',
+      'exibir_precos',                 // NEW
+      'incluir_v_un_itens',            // compat
+      'incluir_v_un_insumos',          // compat
+      'incluir_v_un_opcionais',        // compat
       'total_amount',
       'total_geral',
       'items',
