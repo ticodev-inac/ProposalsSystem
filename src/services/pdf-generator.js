@@ -218,9 +218,7 @@ class PDFGenerator {
       // Cabeçalho
       this._addHeader(pdfData)
 
-      if (pdfData.supplier && pdfData.supplier.nome) {
-        this._addSupplierSection(pdfData.supplier)
-      }
+
       if (pdfData.event && pdfData.event.nome) {
         this._addEventSection(pdfData.event)
       }
@@ -249,7 +247,9 @@ class PDFGenerator {
       if (pdfData.texts?.policy) {
         this._addGreySection('Política de Contratação', pdfData.texts.policy);
       }
-
+      if (pdfData.supplier && pdfData.supplier.nome) {
+        this._addSupplierSection(pdfData.supplier)
+      }
       // Faixa de aceite/assinatura
       this._addAcceptanceBand(
         pdfData.supplier?.nome,
@@ -347,7 +347,7 @@ class PDFGenerator {
   _addSupplierSection(supplier) {
     const fornecedorRows = [
       {
-        left: { label: 'Razão Social', value: supplier.nome },
+        left: { label: 'Empresa', value: supplier.nome },
         right: { label: 'Responsável', value: supplier.vendedor?.nome }
       },
       {
@@ -360,7 +360,7 @@ class PDFGenerator {
         right: { label: 'E-mail', value: supplier.email }
       }
     ];
-    this.addDataSectionPairs('DADOS DO FORNECEDOR', [46, 154, 213], fornecedorRows);
+    this.addDataSectionPairs('DADOS DO FORNECEDOR', [214, 124, 28], fornecedorRows);
   }
 
   _addEventSection(event) {
@@ -390,7 +390,7 @@ class PDFGenerator {
         right: { label: 'E-mail', value: event.email }
       }
     ];
-    this.addDataSectionPairs('DADOS DO EVENTO', [76, 175, 80], eventoRows);
+    this.addDataSectionPairs('DADOS DO EVENTO', [66, 133, 244], eventoRows);
   }
 
   // helper: corta texto para caber em uma única linha (com "…")
@@ -426,9 +426,9 @@ class PDFGenerator {
 
     const titleColor = [66, 133, 244]; // título da seção (laranja p/ serviços, azul p/ demais)
     const subtotalColor = [214, 124, 28];                             // SEMPRE laranja nos subtotais
-    const headColor = [52, 144, 220];                             // SEMPRE laranja nos subtotais
+    const headColor = [10, 42, 102];                             // SEMPRE laranja nos subtotais
 
-    
+
 
     // ====== BANNER TÍTULO (retângulo; texto à esquerda, centralizado) ======
     const TITLE_GAP = 0.2; // distância entre o banner do título e o início da tabela
@@ -472,12 +472,15 @@ class PDFGenerator {
       };
 
     // ===== dados + subtotal para modo sem preços
+    // ===== dados + subtotal (sempre somando no subtotal da seção) =====
     let subtotalSum = 0;
+
     const tableData = items.map(it => {
       const name = String(it.codigo || it.name || it.product_name || it.titulo || it.item_name || '-').trim();
       const desc = String(it.descricao || it.description || it.product_description || '').trim();
       const qty = Number(it.quantidade ?? it.qtd ?? it.qtde ?? 0) || 0;
 
+      // quando esconder preços, ainda assim calcular o subtotal da seção
       if (!this.showPrices) {
         const unitRaw = it.valor_unitario ?? it.price ?? it.unit_price ?? 0;
         const unitNum = this._parseCurrencyToNumber(unitRaw);
@@ -485,22 +488,31 @@ class PDFGenerator {
         return [{ name, desc }, String(qty)];
       }
 
+      // com preços
       const unitRaw =
         it.valor_unitario ?? it.unitario ?? it.preco_unitario ??
         it.valor ?? it.valor_unitario_value ?? it.unit_value ?? it.valorUnitario;
+
       const unitNum = this._parseCurrencyToNumber(unitRaw);
 
-      const subtotalProvided = it.subtotal ?? it.sub_total ?? it.subtotal_value ?? it.total ?? it.total_value;
+      const subtotalProvided =
+        it.subtotal ?? it.sub_total ?? it.subtotal_value ?? it.total ?? it.total_value;
+
       const subtotalNum = (subtotalProvided != null && subtotalProvided !== '')
         ? this._parseCurrencyToNumber(subtotalProvided)
         : (qty * unitNum);
 
+      // 👉 SOMA SEMPRE NO TOTAL DA SEÇÃO
+      subtotalSum += Number.isFinite(subtotalNum) ? subtotalNum : 0;
+
       const unitDisplay = it.valor_unitario_formatted ??
         (typeof unitRaw === 'string' && unitRaw.trim() ? unitRaw : this._formatCurrency(unitNum));
+
       const subtotalDisplay = it.subtotal_formatted ?? this._formatCurrency(subtotalNum);
 
       return [{ name, desc }, String(qty), unitDisplay, subtotalDisplay];
     });
+
 
     // ===== tabela
     doc.autoTable({
@@ -516,7 +528,7 @@ class PDFGenerator {
         valign: 'middle'
       },
       headStyles: {
-        fillColor: titleColor,
+        fillColor: headColor,
         textColor: [255, 255, 255],
         fontStyle: 'bold',
         halign: 'center',
@@ -552,16 +564,14 @@ class PDFGenerator {
       showHead: 'everyPage',
     });
 
-    // ===== SUBTOTAL (retângulo; texto à direita, centralizado verticalmente; colado na tabela)
     this.currentY = doc.lastAutoTable.finalY + 2;
 
     const subY = this.currentY;
     doc.setFillColor(...subtotalColor);
     doc.rect(M, subY, tableW, SUB_H, 'F');
 
-    const valor = this.showPrices
-      ? (typeof subtotalValue === 'number' ? this._formatCurrency(subtotalValue) : (subtotalValue || this._formatCurrency(subtotalSum)))
-      : this._formatCurrency(subtotalSum);
+    // 👉 SEMPRE usa o total calculado da seção
+    const valor = this._formatCurrency(subtotalSum);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(BANNER_FS);
@@ -569,6 +579,7 @@ class PDFGenerator {
     doc.text(`${subtotalLabel}: ${valor}`, M + tableW - 8, subY + SUB_H / 2, { align: 'right', baseline: 'middle' });
 
     this.currentY = subY + SUB_H + 8;
+
   }
 
 
