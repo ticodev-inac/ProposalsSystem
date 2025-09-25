@@ -8,8 +8,10 @@ class PDFGenerator {
     this.doc = null
     this.assets = null
     this.currentY = 20
-    this.pageHeight = 297 // A4 height in mm
+    this.pageHeight = 297 // será recalculado
     this.showPrices = true // NEW
+    this.HEADER = { y: 6, height: 18, gapAfter: 8, maxWidthRatio: 0.65 };
+
 
     // Constantes de layout (mm) - conforme especificação
     this.LAYOUT = {
@@ -48,18 +50,72 @@ class PDFGenerator {
     }
   }
 
-  // Recalcula layout após inicialização do documento
   _recomputeLayout() {
     if (!this.doc) return
-
     const pageW = this.doc.internal.pageSize.getWidth()
+    const pageH = this.doc.internal.pageSize.getHeight()
+    this.pageHeight = pageH
     this.contentWidth = pageW - (this.margin * 2)
-
     this.COL = {
       leftX: this.margin + this.LAYOUT.colPadX,
       rightX: this.margin + (this.contentWidth / 2) + this.LAYOUT.colPadX,
       width: this.contentWidth / 2
     }
+  }
+  // retorna Y onde o conteúdo pode começar abaixo do cabeçalho
+  _headerContentStartY() {
+    const headerH = this._lastHeaderH || this.HEADER.height;
+    return this.HEADER.y + headerH + this.HEADER.gapAfter;
+  }
+
+
+  // tenta achar o número em vários caminhos comuns
+  _getProposalNumber(pdfData) {
+    const c = [
+      pdfData?.metadata?.proposal_number, // 1º: bruto vindo do serviço
+      pdfData?.metadata?.numero,          // 2º: o “display” já montado
+      pdfData?.proposal_number,
+      pdfData?.proposal?.proposal_number,
+      pdfData?.proposal?.numero,
+      pdfData?.numero_proposta,
+      pdfData?.metadata?.numero_proposta
+    ];
+    for (const v of c) {
+      if (v !== undefined && v !== null && String(v).trim() !== '') return String(v);
+    }
+    return null;
+  }
+
+  _drawHeaderImageOnPage() {
+    const doc = this.doc;
+    const pageW = doc.internal.pageSize.getWidth();
+    const M = this.SPACE.marginX;
+    const img = this.assets?.header || this.assets?.logo;
+    if (!img) return 0;
+
+    // Propriedades naturais da imagem (para manter proporção)
+    const props = doc.getImageProperties(img);
+    const ratio = props?.width && props?.height ? (props.width / props.height) : 4; // fallback
+
+    // Queremos respeitar margens laterais e a altura alvo (this.HEADER.height)
+    const maxW = pageW - (M * 2);
+    const maxH = this.HEADER.height;
+
+    // Escala preservando aspecto
+    let w = maxW;
+    let h = w / ratio;
+    if (h > maxH) { h = maxH; w = h * ratio; }
+
+    // Centraliza horizontalmente
+    const x = (pageW - w) / 2;
+    const y = this.HEADER.y;
+
+    // Use um alias e compressão melhor que FAST para evitar perda de nitidez
+    doc.addImage(img, 'PNG', x, y, w, h, 'hdr', 'MEDIUM');
+
+    // guarde a última altura real usada para posicionar o conteúdo abaixo
+    this._lastHeaderH = h;
+    return h;
   }
 
   // 🔧 HELPERS REUTILIZÁVEIS
@@ -268,16 +324,19 @@ class PDFGenerator {
   }
 
   _addHeader(pdfData) {
-    if (this.assets?.logo) {
-      this.doc.addImage(this.assets.logo, 'PNG', this.SPACE.marginX, this.SPACE.marginX, 40, 20)
-    }
+    this._drawHeaderImageOnPage();                 // logo menor no topo
 
-    this.doc.setFontSize(20)
-    this.doc.setFont('helvetica', 'bold')
-    this.doc.text('PROPOSTA COMERCIAL', this.SPACE.marginX + 50, this.SPACE.marginX + 12)
+    const pageW = this.doc.internal.pageSize.getWidth();
+    const numero = this._getProposalNumber(pdfData);
+    const title = `PROPOSTA COMERCIAL Nº ${numero ?? '?'}`;
 
-    this.currentY = this.SPACE.marginX + 34
+    this.doc.setFontSize(18);                      // um pouco menor
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text(title, pageW / 2, this._headerContentStartY() + 4, { align: 'center' });
+
+    this.currentY = this._headerContentStartY() + 12; // menos respiro
   }
+
 
   _addClientSection(client) {
     this._checkPageBreak(60)
@@ -537,8 +596,12 @@ class PDFGenerator {
         minCellHeight: HEAD_H,
       },
       columnStyles,
+      // 🔧 APENAS UMA margin (com top respeitando o cabeçalho)
+      margin: { top: this._headerContentStartY(), left: M, right: M },
+      pageBreak: 'auto',
+      showHead: 'everyPage',
+
       didParseCell: (data) => {
-        // 1ª coluna (nome+descrição) desenhada manualmente
         if (data.section === 'body' && data.column.index === 0 && typeof data.cell.raw === 'object') {
           data.cell.text = '';
           data.cell.styles.minCellHeight = ROW_H;
@@ -559,10 +622,17 @@ class PDFGenerator {
           doc.setTextColor(0, 0, 0);
         }
       },
-      margin: { left: M, right: M },
-      pageBreak: 'auto',
-      showHead: 'everyPage',
+      didDrawPage: (data) => {
+        this._drawHeaderImageOnPage();
+        if (data.pageNumber > 1) {
+          const pageW = this.doc.internal.pageSize.getWidth();
+          this.doc.setFont('helvetica', 'bold');
+          this.doc.setFontSize(14);
+          this.doc.text('PROPOSTA COMERCIAL', pageW / 2, this._headerContentStartY() - 2, { align: 'center' });
+        }
+      },
     });
+
 
     this.currentY = doc.lastAutoTable.finalY + 2;
 
@@ -772,11 +842,16 @@ class PDFGenerator {
   }
 
   _checkPageBreak(requiredSpace) {
-    if (this.currentY + requiredSpace > this.pageHeight - 25) {
+    const bottomMargin = 25
+    if (this.currentY + requiredSpace > this.pageHeight - bottomMargin) {
       this.doc.addPage()
-      this.currentY = 20
+      // desenha a imagem do cabeçalho nesta página
+      this._drawHeaderImageOnPage()
+      // reposiciona o cursor para abaixo do cabeçalho
+      this.currentY = this._headerContentStartY()
     }
   }
+
 
   _formatCurrency(value) {
     return new Intl.NumberFormat('pt-BR', {

@@ -316,20 +316,32 @@ class PDFDataService {
     }
   }
 
-  // ===== Normalizações =====
-
   _normalizeMetadata(proposal) {
+    // prioriza o número “sequencial” da proposta vindo do BD
+    const rawNumero =
+      proposal.proposal_number ??
+      proposal.numero ?? // compat
+      null;
+
+    // valor que será exibido no PDF
+    const displayNumero =
+      (rawNumero !== null && rawNumero !== undefined && String(rawNumero).trim() !== '')
+        ? String(rawNumero)
+        : `PROP-${proposal.id}`; // fallback antigo, só se não houver número
+
     return {
       id: proposal.id,
-      numero: proposal.numero || `PROP-${proposal.id}`,
+      numero: displayNumero,          // <- o que o PDF usa
+      proposal_number: rawNumero,     // <- mantém o bruto para quem precisar
       status: proposal.status || 'rascunho',
       data_criacao: this.dateFormatter.format(new Date(proposal.created_at)),
       data_atualizacao: this.dateFormatter.format(new Date(proposal.updated_at)),
       validade: proposal.validade ? this.dateFormatter.format(new Date(proposal.validade)) : '',
       vendedor: proposal.vendedor || '',
       empresa: proposal.empresa || 'Sua Empresa'
-    }
+    };
   }
+
 
   _normalizeItems(items) {
     if (!Array.isArray(items) || items.length === 0) {

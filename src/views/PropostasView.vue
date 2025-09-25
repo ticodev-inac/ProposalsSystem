@@ -1628,7 +1628,6 @@ export default {
       return {
         client_id: form.value.client_id,
         company_id: form.value.company_id ?? getCompanyIdFallback(),
-        proposal_number: form.value.proposal_number || null,
         title: form.value.title,
         description: form.value.observations || '',
         status: form.value.status,
@@ -1807,6 +1806,7 @@ export default {
         } else {
           // Criação (rascunho com defaults do formulário)
           const proposalData = await buildDbPayload()
+          delete proposalData.proposal_number;
           proposalData.created_at = new Date().toISOString()
 
           const { data, error } = await supabase
