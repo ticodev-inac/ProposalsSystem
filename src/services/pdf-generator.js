@@ -360,7 +360,7 @@ class PDFGenerator {
         right: { label: 'E-mail', value: supplier.email }
       }
     ];
-    this.addDataSectionPairs('DADOS DO FORNECEDOR', [214, 124, 28], fornecedorRows);
+    this.addDataSectionPairs('DADOS DO FORNECEDOR', [66, 133, 244], fornecedorRows);
   }
 
   _addEventSection(event) {
