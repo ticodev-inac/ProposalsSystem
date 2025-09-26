@@ -576,6 +576,40 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Contato do Cliente (somente para esta proposta) -->
+<div class="form-row">
+  <div class="form-group">
+    <label for="requesterName">Nome do Contato</label>
+    <input
+      id="requesterName"
+      type="text"
+      v-model="form.requester_name"
+      placeholder="Nome do contato"
+    >
+  </div>
+
+  <div class="form-group">
+    <label for="phone">Telefone</label>
+    <input
+      id="phone"
+      type="text"
+      v-model="form.phone"
+      placeholder="(xx) xxxxx-xxxx"
+    >
+  </div>
+</div>
+
+<div class="form-group">
+  <label for="email">E-mail</label>
+  <input
+    id="email"
+    type="email"
+    v-model="form.email"
+    placeholder="contato@empresa.com"
+  >
+</div>
+
               
               <div class="form-group">
                 <label for="eventName">Nome do Evento *</label>
@@ -1576,18 +1610,21 @@ export default {
       }
     }
 
-    const selectClient = (client) => {
-      form.value.client_id = client.id
-      form.value.company_id = client.company_id || getCompanyIdFallback()
-      form.value.client_name = client.company_name
-      // Preenchimento automático (como no projeto antigo)
-      if (!form.value.contractor_name) form.value.contractor_name = client.company_name
-      if (!form.value.email) form.value.email = client.email
-      if (!form.value.phone) form.value.phone = client.phone
-      if (!form.value.requester_name) form.value.requester_name = client.contact_name
-      showClientDropdown.value = false
-      clientSearch.value = ''
-    }
+const selectClient = (client) => {
+  form.value.client_id   = client.id
+  form.value.company_id  = client.company_id || getCompanyIdFallback()
+  form.value.client_name = client.company_name
+
+  // Preenche/atualiza os dados de contato SOMENTE nesta proposta
+  form.value.requester_name = client.contact_name || ''
+  form.value.email          = client.email || ''
+  form.value.phone          = client.phone || ''
+
+  // não altera nada na tabela de clientes
+  showClientDropdown.value = false
+  clientSearch.value = ''
+}
+
 
     const loadTemplateData = async (templateId) => {
       try {
