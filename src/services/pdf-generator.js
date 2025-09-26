@@ -131,7 +131,7 @@ class PDFGenerator {
     this.doc.rect(this.SPACE.marginX, this.currentY, this.contentWidth, this.SPACE.titleHeight, 'F');
 
     this.doc.setTextColor(0, 0, 0);
-    this.doc.setFont('Roboto-Bold', 'bold');
+    this.doc.setFont('Arial', 'bold');
     this.doc.setFontSize(11);
 
     const leftX = this.SPACE.marginX + 5;
@@ -142,7 +142,7 @@ class PDFGenerator {
     this._moveY(this.SPACE.afterTitle);
 
     this.doc.setTextColor(0, 0, 0);
-    this.doc.setFont('Roboto-Regular', 'normal');
+    this.doc.setFont('Arial', 'normal');
     this.doc.setFontSize(9);
   }
 
@@ -164,7 +164,7 @@ class PDFGenerator {
     this.doc.rect(x, y, w, H, 'F');
 
     // texto à direita, centralizado verticalmente
-    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFont('Arial', 'bold');
     this.doc.setFontSize(12);
     this.doc.setTextColor(0, 0, 0);
     this.doc.text(text, x + w - 8, y + H / 2, { align: 'right', baseline: 'middle' });
@@ -196,7 +196,7 @@ class PDFGenerator {
 
     // texto (preto, alinhado à direita por padrão)
     doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', fontStyle);
+    doc.setFont('Arial', fontStyle);
     doc.setFontSize(fontSize);
 
     const cx = (align === 'center') ? (M + W / 2) : (align === 'right' ? (M + W - 8) : (M + 8));
@@ -219,10 +219,11 @@ class PDFGenerator {
   _textRow(label, value, x, y, wrapWidth = this.SPACE.wrapWidth, rowHeight = this.SPACE.row) {
     if (value === undefined || value === null || value === '') return y
 
-    this.doc.setFont('Roboto-Bold', 'bold')
+    this.doc.setFont('Arial', 'bold')
     this.doc.text(label + ':', x, y)
 
-    this.doc.setFont('Roboto-Regular', 'normal')
+    this.doc.setFont('Arial', 'normal')
+    this.doc.setFontSize(9);
     const lines = Array.isArray(value) ? value : this.doc.splitTextToSize(String(value), wrapWidth)
     this.doc.text(lines, x + this.SPACE.labelGap, y)
 
@@ -331,7 +332,7 @@ class PDFGenerator {
     const title = `PROPOSTA COMERCIAL Nº ${numero ?? '?'}`;
 
     this.doc.setFontSize(18);                      // um pouco menor
-    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFont('Arial', 'bold');
     this.doc.text(title, pageW / 2, this._headerContentStartY() + 4, { align: 'center' });
 
     this.currentY = this._headerContentStartY() + 12; // menos respiro
@@ -342,7 +343,7 @@ class PDFGenerator {
     this._checkPageBreak(60)
     this.doc.setFillColor(76, 175, 80)
     this.doc.setTextColor(255, 255, 255)
-    this.doc.setFont('Roboto-Bold', 'bold')
+    this.doc.setFont('Arial', 'bold')
     this.doc.setFontSize(12)
     this.doc.rect(20, this.currentY, 170, 8, 'F')
     this.doc.text('DADOS DO CLIENTE', 22, this.currentY + 5.5)
@@ -350,7 +351,7 @@ class PDFGenerator {
     this.currentY += 12
 
     this.doc.setTextColor(0, 0, 0)
-    this.doc.setFont('Roboto-Regular', 'normal')
+    this.doc.setFont('Arial', 'normal')
     this.doc.setFontSize(10)
 
     const leftColumn = 22
@@ -358,25 +359,25 @@ class PDFGenerator {
     let currentRow = this.currentY
 
     if (client?.nome) {
-      this.doc.setFont('Roboto-Bold', 'bold')
+      this.doc.setFont('Arial', 'bold')
       this.doc.text('Nome:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
+      this.doc.setFont('Arial', 'normal')
       this.doc.text(client.nome, leftColumn + 15, currentRow)
       currentRow += 6
     }
 
     if (client?.cnpj_cpf) {
-      this.doc.setFont('Roboto-Bold', 'bold')
+      this.doc.setFont('Arial', 'bold')
       this.doc.text('CNPJ/CPF:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
+      this.doc.setFont('Arial', 'normal')
       this.doc.text(client.cnpj_cpf, leftColumn + 25, currentRow)
       currentRow += 6
     }
 
     if (client?.endereco) {
-      this.doc.setFont('Roboto-Bold', 'bold')
+      this.doc.setFont('Arial', 'bold')
       this.doc.text('Endereço:', leftColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
+      this.doc.setFont('Arial', 'normal')
       const enderecoLines = this.doc.splitTextToSize(client.endereco, 65)
       this.doc.text(enderecoLines, leftColumn + 22, currentRow)
       currentRow += (enderecoLines.length * 5)
@@ -385,17 +386,17 @@ class PDFGenerator {
     currentRow = this.currentY
 
     if (client?.telefone) {
-      this.doc.setFont('Roboto-Bold', 'bold')
+      this.doc.setFont('Arial', 'bold')
       this.doc.text('Telefone:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
+      this.doc.setFont('Arial', 'normal')
       this.doc.text(client.telefone, rightColumn + 22, currentRow)
       currentRow += 6
     }
 
     if (client?.email) {
-      this.doc.setFont('Roboto-Bold', 'bold')
+      this.doc.setFont('Arial', 'bold')
       this.doc.text('E-mail:', rightColumn, currentRow)
-      this.doc.setFont('Roboto-Regular', 'normal')
+      this.doc.setFont('Arial', 'normal')
       this.doc.text(client.email, rightColumn + 18, currentRow)
       currentRow += 6
     }
@@ -496,7 +497,7 @@ class PDFGenerator {
     doc.setFillColor(...titleColor);
     doc.rect(M, y, tableW, TITLE_H, 'F');
 
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('Arial', 'bold');
     doc.setFontSize(BANNER_FS);
     doc.setTextColor(0, 0, 0);
 
@@ -509,7 +510,7 @@ class PDFGenerator {
 
     // ===== sem itens?
     if (!items || items.length === 0) {
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+      doc.setFont('Arial', 'italic'); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
       doc.text(`Nenhum item em ${title.toLowerCase()}`, M, this.currentY);
       this._moveY(8);
       return;
@@ -613,11 +614,11 @@ class PDFGenerator {
         const { name, desc } = data.cell.raw;
         const maxW = width - PAD_X * 2;
 
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(NAME_FS); doc.setTextColor(0, 0, 0);
+        doc.setFont('Arial', 'bold'); doc.setFontSize(NAME_FS); doc.setTextColor(0, 0, 0);
         doc.text(this._fitOneLine(name, maxW), x + PAD_X, y + PAD_Y + 3);
 
         if (desc) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(DESC_FS); doc.setTextColor(...DESC_COLOR);
+          doc.setFont('Arial', 'normal'); doc.setFontSize(DESC_FS); doc.setTextColor(...DESC_COLOR);
           doc.text(this._fitOneLine(desc, maxW), x + PAD_X, y + height - PAD_Y + 0.2);
           doc.setTextColor(0, 0, 0);
         }
@@ -626,7 +627,7 @@ class PDFGenerator {
         this._drawHeaderImageOnPage();
         if (data.pageNumber > 1) {
           const pageW = this.doc.internal.pageSize.getWidth();
-          this.doc.setFont('helvetica', 'bold');
+          this.doc.setFont('Arial', 'bold');
           this.doc.setFontSize(14);
           this.doc.text('PROPOSTA COMERCIAL', pageW / 2, this._headerContentStartY() - 2, { align: 'center' });
         }
@@ -643,7 +644,7 @@ class PDFGenerator {
     // 👉 SEMPRE usa o total calculado da seção
     const valor = this._formatCurrency(subtotalSum);
 
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('Arial', 'bold');
     doc.setFontSize(BANNER_FS);
     doc.setTextColor(0, 0, 0);
     doc.text(`${subtotalLabel}: ${valor}`, M + tableW - 8, subY + SUB_H / 2, { align: 'right', baseline: 'middle' });
@@ -696,13 +697,13 @@ class PDFGenerator {
     this.doc.setFillColor(190, 190, 190);
     this.doc.rect(this.SPACE.marginX, this.currentY, this.contentWidth, barH, 'F');
 
-    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFont('Arial', 'bold');
     this.doc.setFontSize(11);
     this.doc.setTextColor(0, 0, 0);
     this.doc.text(title, this.SPACE.marginX + 4, this.currentY + 5.5);
 
     this._moveY(barH + 5);
-    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFont('Arial', 'normal');
     this.doc.setFontSize(10);
 
     const lines = this._normalizeToLines(content);
@@ -753,7 +754,7 @@ class PDFGenerator {
     this.doc.setFillColor(220, 220, 220);
     this.doc.rect(x, y, w, h, 'F');
 
-    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFont('Arial', 'normal');
     this.doc.setFontSize(9);
     this.doc.text(`Empresa: ${companyName || '-'}`, x + 4, y + 5.5);
 
@@ -773,21 +774,21 @@ class PDFGenerator {
     this._moveY(this.SPACE.sectionTop)
 
     this.doc.setFontSize(14)
-    this.doc.setFont('helvetica', 'bold')
+    this.doc.setFont('Arial', 'bold')
     this.doc.text(title, this.SPACE.marginX, this.currentY)
     this._moveY(this.SPACE.titleHeight + 2)
 
     this.doc.setFontSize(10)
-    this.doc.setFont('helvetica', 'normal')
+    this.doc.setFont('Arial', 'normal')
 
     if (Array.isArray(content)) {
       content.forEach(item => {
         if (item.titulo) {
           this._checkPageBreak(this.SPACE.rowLoose)
-          this.doc.setFont('helvetica', 'bold')
+          this.doc.setFont('Arial', 'bold')
           this.doc.text(item.titulo, this.SPACE.marginX, this.currentY)
           this._moveY(this.SPACE.rowLoose)
-          this.doc.setFont('helvetica', 'normal')
+          this.doc.setFont('Arial', 'normal')
         }
 
         if (item.conteudo) {
@@ -832,7 +833,7 @@ class PDFGenerator {
     for (let i = 1; i <= pageCount; i++) {
       this.doc.setPage(i)
       this.doc.setFontSize(8)
-      this.doc.setFont('helvetica', 'normal')
+      this.doc.setFont('Arial', 'normal')
       this.doc.text(
         `Página ${i} de ${pageCount}`,
         this.doc.internal.pageSize.width - this.SPACE.marginX - 20,
@@ -893,7 +894,7 @@ class PDFGenerator {
 
     const colW = this.contentWidth / 2
     const labelText = `${label}:`
-    this.doc.setFont('helvetica', 'bold')
+    this.doc.setFont('Arial', 'bold')
     const labelWidth = this.doc.getTextWidth(labelText)
     const avail = colW - (labelWidth + this.LAYOUT.valueGap + this.LAYOUT.colPadX)
 
@@ -920,13 +921,13 @@ class PDFGenerator {
   _drawFixed(x, { label, value, wrap, line }, side, y) {
     const lineH = line || this.LAYOUT.row
 
-    this.doc.setFont('helvetica', 'bold')
+    this.doc.setFont('Arial', 'bold')
     const labelText = `${label}:`
     this.doc.text(labelText, x, y)
     const labelWidth = this.doc.getTextWidth(labelText)
     const valueX = x + labelWidth + this.LAYOUT.valueGap
 
-    this.doc.setFont('helvetica', 'normal')
+    this.doc.setFont('Arial', 'normal')
 
     const colW = this.contentWidth / 2
     const avail = colW - (labelWidth + this.LAYOUT.valueGap + this.LAYOUT.colPadX)
@@ -944,7 +945,7 @@ class PDFGenerator {
       Array.isArray(colorRGB) ? colorRGB : [colorRGB.r, colorRGB.g, colorRGB.b]
     )
     this.doc.setFontSize(10)
-    this.doc.setFont('helvetica', 'normal')
+    this.doc.setFont('Arial', 'normal')
 
     let y = this.currentY + 0.8
     for (const row of rows) y = this._drawPairRowFixed(row.left, row.right, y)

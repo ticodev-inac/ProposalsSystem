@@ -19,8 +19,24 @@ const robotoItalic = `data:font/truetype;charset=utf-8;base64,AAEAAAASAQAABAAgR0
  */
 export function registerRobotoFonts(doc) {
   try {
-    // Usar fontes padrão para evitar erros de codificação
-    console.log('Usando fontes padrão do sistema')
+    // Mapeia "Arial" (e "Roboto") para uma fonte nativa segura do jsPDF (Helvetica)
+    if (doc && typeof doc.setFont === 'function') {
+      const originalSetFont = doc.setFont.bind(doc)
+      doc.setFont = (family = 'Arial', weight = 'normal') => {
+        const f = String(family || '').toLowerCase()
+        if (f === 'arial' || f === 'roboto' || f.startsWith('roboto-')) {
+          return originalSetFont('helvetica', weight)
+        }
+        try {
+          return originalSetFont(family, weight)
+        } catch (e) {
+          console.warn('Fonte não reconhecida, usando fallback Helvetica:', e)
+          return originalSetFont('helvetica', weight)
+        }
+      }
+    }
+
+    console.log('Usando fonte Arial (mapeada para Helvetica no jsPDF por compatibilidade)')
     return true
   } catch (error) {
     console.warn('Erro ao configurar fontes:', error)

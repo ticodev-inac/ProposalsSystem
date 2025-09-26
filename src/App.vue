@@ -175,7 +175,7 @@ export default {
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
   background-color: #f5f5f5;
   color: #333;
   line-height: 1.6;
