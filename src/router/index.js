@@ -4,7 +4,6 @@ import DashboardView from '../views/DashboardView.vue'
 import PropostasView from '../views/PropostasView.vue'
 import ClientesView from '../views/ClientesView.vue'
 import FornecedoresView from '../views/FornecedoresView.vue'
-import ConfiguracoesView from '../views/ConfiguracoesView.vue'
 import FixoView from '../views/FixoView.vue'
 import ModelosView from '../views/ModelosView.vue'
 import ProdutosServicosView from '../views/ProdutosServicosView.vue'
@@ -15,7 +14,6 @@ import OpcionaisView from '../views/OpcionaisView.vue'
 import TotalGeralView from '../views/TotalGeralView.vue'
 import CondicoesGeraisView from '../views/CondicoesGeraisView.vue'
 import PoliticaContratacaoView from '../views/PoliticaContratacaoView.vue'
-import DadosFornecedorView from '../views/DadosFornecedorView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -75,10 +73,10 @@ const router = createRouter({
       name: 'politica-contratacao',
       component: PoliticaContratacaoView
     },
-    {
-      path: '/dados-fornecedor',
-      name: 'dados-fornecedor',
-      component: DadosFornecedorView
+     {
+      path: '/propostas',
+      name: 'Propostas',
+      component: () => import('@/views/PropostasView.vue'),
     },
     {
       path: '/propostas',
@@ -95,11 +93,7 @@ const router = createRouter({
       name: 'fornecedores',
       component: FornecedoresView
     },
-    {
-      path: '/configuracoes',
-      name: 'configuracoes',
-      component: ConfiguracoesView
-    },
+
     { 
       path: '/login', 
       name: 'login', 

@@ -88,12 +88,7 @@
             <span v-if="!sidebarCollapsed">Política Contratação</span>
           </router-link>
         </li>
-        <li class="menu-item">
-          <router-link to="/dados-fornecedor" class="menu-link">
-            <i class="fas fa-truck"></i>
-            <span v-if="!sidebarCollapsed">Dados Fornecedor</span>
-          </router-link>
-        </li>
+
       </ul>
     </nav>
 
@@ -151,7 +146,6 @@ export default {
         'TotalGeral': 'Total Geral',
         'CondicoesGerais': 'Condições Gerais',
         'PoliticaContratacao': 'Política Contratação',
-        'DadosFornecedor': 'Dados Fornecedor'
       }
       return titles[route.name] || 'Sistema de Propostas'
     })

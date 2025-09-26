@@ -1036,7 +1036,7 @@
                     :key="supplier.id" 
                     :value="supplier.id"
                   >
-                    {{ supplier.company_name }}
+                    {{ formatSupplierLabel(supplier) }}
                   </option>
                 </select>
               </div>
@@ -2903,6 +2903,13 @@ const selectClient = (client) => {
       filterAvailableOptionals()
     })
 
+    const formatSupplierLabel = (s) => {
+  const empresa = (s?.company_name || '').trim()
+  const contato =
+    (s?.contact_person || s?.contact_name || s?.responsavel || s?.contato || '').trim()
+  return contato ? `${empresa} -- ${contato}` : empresa
+}
+
     return {
       proposals,
       filteredProposals,
@@ -3068,7 +3075,8 @@ const selectClient = (client) => {
       loadSuppliers,
       onSupplierChange,
       formatCNPJ,
-      formatPhone
+      formatPhone,
+      formatSupplierLabel
     }
   }
 }
@@ -3495,79 +3503,134 @@ const selectClient = (client) => {
   font-size: 16px;
 }
 
-/* Modal Styles - Responsivo Melhorado */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
-  overflow-y: auto;
 }
 
-/* Modal de itens deve aparecer acima do modal principal */
-.item-modal-overlay {
-  z-index: 10000;
-  background: rgba(0, 0, 0, 0.7);
-}
-
-/* Modal de insumos deve aparecer acima do modal principal */
-.supply-modal-overlay {
-  z-index: 10000;
-  background: rgba(0, 0, 0, 0.7);
-}
-
-/* Modal de opcionais deve aparecer acima do modal principal */
+/* Modais de seleção ficam acima do modal principal e com fundo mais escuro */
+.item-modal-overlay,
+.supply-modal-overlay,
 .optional-modal-overlay {
   z-index: 10000;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
 }
 
+/* Modal expandido (compat) */
 .large-modal.expanded-modal {
   height: 95vh !important;
   max-height: 95vh !important;
   overflow: hidden;
 }
 
-/* Modal expandido para melhor visualização */
 .expanded-modal {
   width: 95vw;
   max-width: 1400px;
   max-height: 95vh;
 }
 
-/* Modal com scroll otimizado */
+/* ========= BASE (todas as abas comuns: Dados Básicos, Total Geral, etc.) ========= */
 .modal {
   width: 90%;
   max-width: 1000px;
   max-height: 90vh;
-  background: white;
+  background: #fff;
   border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,.1), 0 10px 10px -5px rgba(0,0,0,.04);
   display: flex;
   flex-direction: column;
-  animation: modalSlideIn 0.3s ease;
+  overflow: hidden;     /* o scroll acontece no body */
   margin: auto;
 }
 
 .modal-content {
   width: 100%;
-  height: 100%;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  background: white;
-  border-radius: 12px;
-  box-shadow: none;
-  flex: 1;
+  min-height: 0;        /* ESSENCIAL para permitir scroll no filho */
+    overflow-y: auto;
+
 }
+
+.modal .modal-header,
+.modal .modal-footer {
+  flex: 0 0 auto;
+}
+
+.modal .modal-body {     /* <- antes estava .modal > .modal-body (não pegava) */
+  flex: 1 1 auto;
+  min-height: 0;        /* ESSENCIAL com flex */
+  overflow: auto;       /* reativa o scroll das telas comuns */
+}
+
+/* ========= SELEÇÃO (itens / insumos / opcionais) – mantém comportamento especial ========= */
+.item-modal-overlay,
+.supply-modal-overlay,
+.optional-modal-overlay {
+  overflow: hidden !important;     /* sem scroll no overlay, evita scroll duplo */
+}
+
+.item-modal-overlay .modal-content,
+.supply-modal-overlay .modal-content,
+.optional-modal-overlay .modal-content {
+  width: 95vw;
+  max-width: 1400px;
+  height: 92vh;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+  background: #fff;
+  box-shadow: 0 30px 80px rgba(0,0,0,.35);
+}
+
+.item-modal-overlay .modal-header,
+.item-modal-overlay .modal-footer,
+.supply-modal-overlay .modal-header,
+.supply-modal-overlay .modal-footer,
+.optional-modal-overlay .modal-header,
+.optional-modal-overlay .modal-footer {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.item-modal-overlay .modal-body,
+.supply-modal-overlay .modal-body,
+.optional-modal-overlay .modal-body {
+  display: grid !important;
+  grid-template-rows: auto auto 1fr;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  overflow: hidden !important;     /* quem rola é a lista */
+  background: #fff !important;
+  padding: 16px 20px;
+}
+
+.item-modal-overlay .items-selection-list,
+.supply-modal-overlay .items-selection-list,
+.optional-modal-overlay .items-selection-list {
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow-y: auto !important;     /* a lista rola */
+  margin: 0 !important;
+  padding-right: 6px;
+  background: #fff;
+}
+
+
+
 
 @keyframes modalSlideIn {
   from {
