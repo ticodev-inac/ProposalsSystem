@@ -1233,23 +1233,33 @@ export default {
     }
 
     const loadProposals = async () => {
-      try {
-        loading.value = true
-        const { data, error } = await supabase
-          .from('proposals')
-          .select('*')
-          .order('created_at', { ascending: false })
-        
-        if (error) throw error
-        
-        proposals.value = data || []
-        filteredProposals.value = data || []
-      } catch (error) {
-        console.error('Erro ao carregar propostas:', error)
-      } finally {
-        loading.value = false
-      }
-    }
+  try {
+    loading.value = true
+
+    const { data, error } = await supabase
+      .from('proposals')
+      .select(`
+        *,
+        client:clients!proposals_client_id_fkey ( id, company_name, email )
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    const rows = (data || []).map(p => ({
+      ...p,
+      client_name: p.client?.company_name ?? 'Cliente não informado'
+    }))
+
+    proposals.value = rows
+    filteredProposals.value = rows
+  } catch (e) {
+    console.error('Erro ao carregar propostas:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
 
     const loadClients = async () => {
       try {
