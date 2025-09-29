@@ -605,35 +605,39 @@ export default {
       editingTypeDescription.value = ''
     }
 
-    const saveTypeEdit = async () => {
-      try {
-        await SupplyTypesService.update(editingTypeId.value, {
-          name: editingTypeName.value.trim(),
-          color: editingTypeColor.value,
-          description: editingTypeDescription.value.trim() || null
-        })
-        
-        await loadSupplyTypes()
-        await loadInsumos()
-        cancelTypeEdit()
-        
-      } catch (error) {
-        console.error('Erro ao atualizar tipo:', error)
-        alert('Erro ao atualizar tipo')
-      }
-    }
+// 2) Salvar edição de tipo — trocar update -> updateType
+const saveTypeEdit = async () => {
+  try {
+    await SupplyTypesService.updateType(editingTypeId.value, {
+      name: editingTypeName.value.trim(),
+      color: editingTypeColor.value,
+      description: editingTypeDescription.value.trim() || null
+    })
+    
+    await loadSupplyTypes()
+    await loadInsumos()
+    cancelTypeEdit()
+    
+  } catch (error) {
+    console.error('Erro ao atualizar tipo:', error)
+    alert('Erro ao atualizar tipo')
+  }
+}
 
-    const deleteType = async (typeId) => {
-      if (!confirm('Tem certeza que deseja excluir este tipo?')) return
-      
-      try {
-        await SupplyTypesService.delete(typeId)
-        await loadSupplyTypes()
-      } catch (error) {
-        console.error('Erro ao excluir tipo:', error)
-        alert('Erro ao excluir tipo')
-      }
-    }
+
+// 3) Excluir tipo — trocar delete -> deleteType
+const deleteType = async (typeId) => {
+  if (!confirm('Tem certeza que deseja excluir este tipo?')) return
+  
+  try {
+    await SupplyTypesService.deleteType(typeId)
+    await loadSupplyTypes()
+  } catch (error) {
+    console.error('Erro ao excluir tipo:', error)
+    alert('Erro ao excluir tipo')
+  }
+}
+
 
     const isDefaultType = (typeName) => {
       return ['MATERIAL', 'MAO_DE_OBRA', 'EQUIPAMENTO'].includes(typeName)
@@ -658,28 +662,30 @@ export default {
       quickTypeName.value = ''
     }
 
-    const createQuickType = async () => {
-      if (!quickTypeName.value.trim()) return
-      
-      creatingType.value = true
-      try {
-        const newType = await SupplyTypesService.create({
-          name: quickTypeName.value.trim(),
-          color: '#007bff',
-          description: null
-        })
-        
-        await loadSupplyTypes()
-        currentInsumo.value.tipo = newType.name
-        closeQuickTypeModal()
-        
-      } catch (error) {
-        console.error('Erro ao criar tipo rápido:', error)
-        alert('Erro ao criar tipo rápido')
-      } finally {
-        creatingType.value = false
-      }
-    }
+// 1) Criar tipo rápido — use o mesmo padrão de nome do create
+const createQuickType = async () => {
+  if (!quickTypeName.value.trim()) return
+  
+  creatingType.value = true
+  try {
+    const newType = await SupplyTypesService.createType({
+      name: quickTypeName.value.trim(),
+      color: '#007bff',
+      description: null
+    })
+    
+    await loadSupplyTypes()
+    currentInsumo.value.tipo = newType.name
+    closeQuickTypeModal()
+    
+  } catch (error) {
+    console.error('Erro ao criar tipo rápido:', error)
+    alert('Erro ao criar tipo rápido')
+  } finally {
+    creatingType.value = false
+  }
+}
+
 
     const getTypeUsageCount = (typeName) => {
       return insumos.value.filter(insumo => insumo.tipo === typeName).length

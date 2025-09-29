@@ -947,6 +947,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  font-size: 12px;
 }
 
 .detail-item label {

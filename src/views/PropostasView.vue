@@ -108,7 +108,7 @@
             </div>
 
             <div class="detail-item" v-if="proposal.event_type">
-              <i class="fas fa-tag"></i>
+              <i class="fas fa-briefcase"></i>
               <span>{{ proposal.event_type }}</span>
             </div>
           </div>
@@ -3083,9 +3083,10 @@ const selectClient = (client) => {
 </script>
 
 <style scoped>
+/* 1) Deixa a página ocupar toda a largura disponível */
 .propostas-page {
   padding: 20px;
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -3200,22 +3201,18 @@ const selectClient = (client) => {
   margin-left: 5px;
 }
 
+/* 2) Grade: coloca o máximo possível por linha */
 .proposals-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 24px;
-  margin-top: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* antes: 400px */
+  gap: 16px;                         /* antes: 24px */
+  margin-top: 16px;                  /* antes: 24px */
 }
 
+/* 3) Card mais compacto (pra caber mais) */
 .proposal-card {
-  background: white;
+  padding: 14px 16px;                /* antes: 20px */
   border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
 }
 
 .proposal-card:hover {
@@ -3331,10 +3328,10 @@ const selectClient = (client) => {
 }
 
 .client-name {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
   color: #333;
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3968,10 +3965,7 @@ const selectClient = (client) => {
     align-items: stretch;
   }
   
-  .proposals-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
+
   
   .proposal-card {
     margin: 0 10px;
@@ -4154,10 +4148,10 @@ const selectClient = (client) => {
 
 .event-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
   color: #1a1a1a;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .inline-icon-btn {
@@ -4236,19 +4230,19 @@ const selectClient = (client) => {
 /* Ações no rodapé do card */
 .proposal-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   margin-top: auto;
 }
 .action-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 6px;
   border: 1px solid #e6e6e6;
   background: #fff;
   color: #444;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: all .15s ease;
 }
@@ -5151,6 +5145,14 @@ const selectClient = (client) => {
   gap: 16px;
   margin-bottom: 24px;
 }
+/* 4) Em telas grandes, fique ainda mais denso (opcional) */
+.proposals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); /* antes 400px/320px */
+  gap: 20px;
+}
+
+
 
 @media (min-width: 768px) {
   .form-grid {
