@@ -19,17 +19,10 @@ class PDFDataService {
   }
 
   // ===== Utilitários =====
-
-  /**
-   * Converte valores numéricos vindos como string (ex: "R$ 2.800,00", "1.234,56")
-   * para Number. Usa `def` como fallback.
-   */
   _num(v, def = 0) {
     if (v === undefined || v === null || v === '') return def
     if (typeof v === 'number' && Number.isFinite(v)) return v
     if (typeof v === 'string') {
-      // remove tudo que não for dígito, vírgula, ponto, sinal
-      // remove separador de milhar e troca vírgula por ponto
       const s = v
         .replace(/[^\d,.-]/g, '')
         .replace(/\.(?=\d{3}(,|$))/g, '')
@@ -40,64 +33,34 @@ class PDFDataService {
     return def
   }
 
-  /**
-   * Função utilitária para parsear strings JSON com fallback seguro
-   */
   _parseIfString(value, defaultValue = []) {
     if (typeof value === 'string') {
-      try {
-        return JSON.parse(value)
-      } catch (error) {
-        console.warn('Erro ao parsear JSON:', value, error)
-        return defaultValue
-      }
+      try { return JSON.parse(value) } catch { return defaultValue }
     }
     return value || defaultValue
   }
 
   // ===== Carregamento principal =====
-
-  /**
-   * Carrega e normaliza todos os dados necessários para gerar o PDF
-   * @param {string} proposalId - ID da proposta
-   * @returns {Object} Dados normalizados para PDF
-   */
   async loadProposalData(proposalId) {
     try {
-      // 1. Buscar proposta principal
       const proposal = await ProposalsService.getProposalById(proposalId)
-      if (!proposal) {
-        throw new Error(`Proposta ${proposalId} não encontrada`)
-      }
+      if (!proposal) throw new Error(`Proposta ${proposalId} não encontrada`)
 
-      console.log('📋 Dados da proposta carregados:', proposal)
-
-      // 2. Carregar dados relacionados
+      // 🔧 carrega o cliente pelo client_id da proposta
       const [clientData, supplierData] = await Promise.all([
         this._loadClientData(proposal.client_id),
         this._loadSupplierData(proposal.supplier_id, proposal.dados_fornecedor)
       ])
 
-      console.log('👤 Dados do cliente:', clientData)
-      console.log('🏢 Dados do fornecedor:', supplierData)
-
-      // 3. Parsear arrays que podem vir como strings JSON
       const parsedItems = this._parseIfString(proposal.items, [])
       const parsedSupplies = this._parseIfString(proposal.insumos, [])
-      const parsedOptionals = this._parseIfString(proposal.opcionais, []) // optionals → opcionais
+      const parsedOptionals = this._parseIfString(proposal.opcionais, [])
 
-      console.log('📦 Itens parseados:', parsedItems)
-      console.log('🔧 Insumos parseados:', parsedSupplies)
-      console.log('⭐ Opcionais parseados:', parsedOptionals)
-
-      // Políticas (com fallback)
       let policy = this._formatTextContent(proposal.politica)
       if (!policy) {
-        console.log('⚠️ Políticas não encontradas na proposta, buscando do fixo_config...')
         try {
           const fixoPolicies = await FixoService.getPoliticaContratacao()
           policy = this._formatTextContent(fixoPolicies)
-          console.log('✅ Políticas carregadas do fixo_config:', policy)
           if (!policy) {
             policy = `POLÍTICAS PADRÃO:
 
@@ -105,10 +68,8 @@ class PDFDataService {
 • Alterações: Sujeitas à disponibilidade e custos adicionais
 • Pagamento: Conforme condições acordadas
 • Responsabilidades: Definidas em contrato específico`
-            console.log('⚠️ Usando políticas padrão')
           }
-        } catch (error) {
-          console.warn('⚠️ Erro ao carregar políticas do fixo_config:', error)
+        } catch {
           policy = `POLÍTICAS PADRÃO:
 
 • Cancelamento: Até 48h antes do evento sem custos
@@ -118,14 +79,11 @@ class PDFDataService {
         }
       }
 
-      // Condições gerais (com fallback)
       let conditions = this._formatTextContent(proposal.condicoes_gerais)
       if (!conditions) {
-        console.log('⚠️ Condições não encontradas na proposta, buscando do fixo_config...')
         try {
           const fixoConditions = await FixoService.getCondicoesGerais()
           conditions = this._formatTextContent(fixoConditions)
-          console.log('✅ Condições carregadas do fixo_config:', conditions)
           if (!conditions) {
             conditions = `CONDIÇÕES GERAIS PADRÃO:
 
@@ -133,10 +91,8 @@ class PDFDataService {
 • Prazo de entrega: Conforme acordado
 • Garantia: 12 meses contra defeitos de fabricação
 • Condições especiais: A definir conforme necessidade do evento`
-            console.log('⚠️ Usando condições padrão')
           }
-        } catch (error) {
-          console.warn('⚠️ Erro ao carregar condições do fixo_config:', error)
+        } catch {
           conditions = `CONDIÇÕES GERAIS PADRÃO:
 
 • Prazo de validade da proposta: 30 dias
@@ -146,59 +102,40 @@ class PDFDataService {
         }
       }
 
-      // helper util local para normalizar booleanos (fora do objeto!)
       const toBool = (v, def = undefined) => {
         if (typeof v === 'boolean') return v
         if (typeof v === 'number') return v !== 0
         if (typeof v === 'string') {
           const s = v.trim().toLowerCase()
-          if (['true', '1', 't', 'yes', 'y', 'on'].includes(s)) return true
-          if (['false', '0', 'f', 'no', 'n', 'off', ''].includes(s)) return false
+          if (['true','1','t','yes','y','on'].includes(s)) return true
+          if (['false','0','f','no','n','off',''].includes(s)) return false
         }
         return def
       }
 
-      // 4. Normalizar e calcular dados
       const normalizedData = {
-        // Metadados da proposta
-        metadata: this._normalizeMetadata(proposal),
-
-        // Dados do cliente
+        // ✅ passa clientData para os normalizadores
+        metadata: this._normalizeMetadata(proposal, clientData),
         client: clientData,
-
-        // Dados do evento
-        event: this._normalizeEventData(proposal),
-
-        // Dados do fornecedor
+        event: this._normalizeEventData(proposal, clientData),
         supplier: supplierData,
 
-        // Listas normalizadas
         items: this._normalizeItems(parsedItems),
         supplies: this._normalizeSupplies(parsedSupplies),
         optionals: this._normalizeOptionals(parsedOptionals),
 
-        // Totais recalculados
         totals: this._calculateTotals({
           items: parsedItems,
           insumos: parsedSupplies,
           optionals: parsedOptionals
         }),
 
-        // Textos (política e condições)
-        texts: {
-          policy: policy,
-          conditions: conditions
-        },
+        texts: { policy, conditions },
 
-        // Configurações de exibição
         display: {
-          // garantir boolean real e fallback para legados
           show_prices: (() => {
-            // 1) prioridade: exibir_precos (pode vir string)
             const main = toBool(proposal.exibir_precos, undefined)
             if (main !== undefined) return main
-
-            // 2) compat: se QUALQUER legado for false, esconder
             const legacy = [
               proposal.incluir_v_un_itens,
               proposal.incluir_v_un_insumos,
@@ -210,9 +147,6 @@ class PDFDataService {
         }
       }
 
-      // LOG TEMPORÁRIO PARA DEBUG
-      console.log('🔍 DEBUG show_prices:', normalizedData.display.show_prices)
-      console.log('📄 Dados normalizados para PDF:', normalizedData)
       return normalizedData
     } catch (error) {
       console.error('Erro ao carregar dados da proposta:', error)
@@ -220,9 +154,7 @@ class PDFDataService {
     }
   }
 
-
   // ===== Cargas auxiliares =====
-
   async _loadClientData(clientId) {
     if (!clientId) {
       console.warn('⚠️ Client ID não fornecido')
@@ -230,15 +162,12 @@ class PDFDataService {
     }
 
     try {
-      console.log('🔍 Buscando cliente com ID:', clientId)
       const client = await ClientsService.getClientById(clientId)
-      console.log('👤 Cliente encontrado:', client)
-
-      if (!client) {
-        return { nome: 'Cliente não encontrado' }
-      }
+      if (!client) return { nome: 'Cliente não encontrado' }
 
       return {
+        // ✅ mantém os dois por conveniência
+        company_name: client.company_name || client.nome || client.name || '',
         nome: client.company_name || client.nome || client.name || 'Cliente não informado',
         cnpj_cpf: client.cnpj || client.cpf || client.document || '',
         contato: client.contato || client.contact || '',
@@ -253,22 +182,13 @@ class PDFDataService {
   }
 
   async _loadSupplierData(supplierId, dadosFornecedor) {
-    if (!supplierId) {
-      console.warn('⚠️ Supplier ID não fornecido')
-      return { nome: 'Fornecedor não informado' }
-    }
+    if (!supplierId) return { nome: 'Fornecedor não informado' }
 
     try {
-      console.log('🔍 Buscando fornecedor com ID:', supplierId)
       const supplier = await SuppliersService.getSupplierById(supplierId)
-      console.log('🏢 Fornecedor encontrado:', supplier)
-
-      // Buscar dados do usuário logado (vendedor responsável)
       const vendedorData = await this._loadVendedorData()
 
-      if (!supplier) {
-        return { nome: 'Fornecedor não encontrado', vendedor: vendedorData }
-      }
+      if (!supplier) return { nome: 'Fornecedor não encontrado', vendedor: vendedorData }
 
       return {
         nome: supplier.company_name || supplier.nome || supplier.name || 'Fornecedor não informado',
@@ -288,17 +208,9 @@ class PDFDataService {
   async _loadVendedorData() {
     try {
       const { data: { user }, error } = await supabase.auth.getUser()
-
       if (error || !user) {
-        console.warn('⚠️ Usuário não encontrado')
-        return {
-          nome: 'Vendedor não identificado',
-          email: '',
-          telefone: '',
-          cargo: 'Vendedor'
-        }
+        return { nome: 'Vendedor não identificado', email: '', telefone: '', cargo: 'Vendedor' }
       }
-
       return {
         nome: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Vendedor',
         email: user.email || '',
@@ -307,48 +219,53 @@ class PDFDataService {
       }
     } catch (error) {
       console.error('❌ Erro ao carregar dados do vendedor:', error)
-      return {
-        nome: 'Erro ao carregar vendedor',
-        email: '',
-        telefone: '',
-        cargo: 'Vendedor'
-      }
+      return { nome: 'Erro ao carregar vendedor', email: '', telefone: '', cargo: 'Vendedor' }
     }
   }
 
-  _normalizeMetadata(proposal) {
-    // prioriza o número “sequencial” da proposta vindo do BD
-    const rawNumero =
-      proposal.proposal_number ??
-      proposal.numero ?? // compat
-      null;
-
-    // valor que será exibido no PDF
+  // ===== Normalizadores =====
+  _normalizeMetadata(proposal, client) {
+    const rawNumero = proposal.proposal_number ?? proposal.numero ?? null
     const displayNumero =
       (rawNumero !== null && rawNumero !== undefined && String(rawNumero).trim() !== '')
         ? String(rawNumero)
-        : `PROP-${proposal.id}`; // fallback antigo, só se não houver número
+        : `PROP-${proposal.id}`
 
     return {
       id: proposal.id,
-      numero: displayNumero,          // <- o que o PDF usa
-      proposal_number: rawNumero,     // <- mantém o bruto para quem precisar
+      numero: displayNumero,
+      proposal_number: rawNumero,
       status: proposal.status || 'rascunho',
       data_criacao: this.dateFormatter.format(new Date(proposal.created_at)),
       data_atualizacao: this.dateFormatter.format(new Date(proposal.updated_at)),
       validade: proposal.validade ? this.dateFormatter.format(new Date(proposal.validade)) : '',
       vendedor: proposal.vendedor || '',
-      empresa: proposal.empresa || 'Sua Empresa'
-    };
+      // ✅ empresa exibida sempre a partir do cliente
+      empresa: client?.company_name || client?.nome || 'Sua Empresa'
+    }
   }
 
-
-  _normalizeItems(items) {
-    if (!Array.isArray(items) || items.length === 0) {
-      console.warn('⚠️ Nenhum item encontrado ou formato inválido')
-      return []
+  _normalizeEventData(proposal, client) {
+    return {
+      nome: proposal.title || '',
+      tipo: proposal.event_type || '',
+      participantes: proposal.participants_count || '',
+      local: proposal.location || '',
+      data_inicio: proposal.start_date ? this.dateFormatter.format(new Date(proposal.start_date)) : '',
+      data_fim: proposal.end_date ? this.dateFormatter.format(new Date(proposal.end_date)) : '',
+      horario_inicio: proposal.start_time || '',
+      horario_fim: proposal.end_time || '',
+      // ✅ usa company_name do cliente (via client_id)
+      empresa_contratante: client?.company_name || client?.nome || '',
+      solicitante: proposal.requester_name || '',
+      telefone: proposal.phone || '',
+      email: proposal.email || ''
     }
+  }
 
+  // ===== Normalizações de listas / Cálculos / Texto (inalterados) =====
+  _normalizeItems(items) {
+    if (!Array.isArray(items) || items.length === 0) return []
     return items
       .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
       .map(item => {
@@ -370,11 +287,7 @@ class PDFDataService {
   }
 
   _normalizeSupplies(supplies) {
-    if (!Array.isArray(supplies) || supplies.length === 0) {
-      console.warn('⚠️ Nenhum insumo encontrado ou formato inválido')
-      return []
-    }
-
+    if (!Array.isArray(supplies) || supplies.length === 0) return []
     return supplies
       .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
       .map(supply => {
@@ -398,11 +311,7 @@ class PDFDataService {
   }
 
   _normalizeOptionals(opcionais) {
-    if (!Array.isArray(opcionais) || opcionais.length === 0) {
-      console.warn('⚠️ Nenhum opcional encontrado ou formato inválido')
-      return []
-    }
-
+    if (!Array.isArray(opcionais) || opcionais.length === 0) return []
     return opcionais
       .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
       .map(optional => {
@@ -423,8 +332,6 @@ class PDFDataService {
       })
   }
 
-  // ===== Cálculos =====
-
   _calculateTotals(proposal) {
     const items = Array.isArray(proposal.items) ? proposal.items : []
     const supplies = Array.isArray(proposal.insumos) ? proposal.insumos : []
@@ -438,14 +345,6 @@ class PDFDataService {
 
     const total_sem_opcionais = subtotal_itens + subtotal_insumos
     const total_com_opcionais = total_sem_opcionais + subtotal_opcionais
-
-    console.log('💰 Totais calculados:', {
-      subtotal_itens,
-      subtotal_insumos,
-      subtotal_opcionais,
-      total_sem_opcionais,
-      total_com_opcionais
-    })
 
     return {
       subtotal_itens,
@@ -464,73 +363,41 @@ class PDFDataService {
   }
 
   _calculateItemSubtotal(item) {
-    const quantidade = this._num(item.quantidade ?? item.quantity, 1) // default 1
+    const quantidade = this._num(item.quantidade ?? item.quantity, 1)
     const valorUn = this._num(item.valor_unitario ?? item.price ?? item.unit_price, 0)
     const descontoPerc = this._num(item.desconto ?? item.discount, 0)
-
     const bruto = quantidade * valorUn
     const total = bruto - (bruto * descontoPerc / 100)
     return Number.isFinite(total) ? total : 0
   }
 
-  // ===== Texto/endereços =====
-
-  /**
-   * Formatar conteúdo de texto (condições e políticas) para exibição bonita
-   */
   _formatTextContent(content) {
     if (!content) return ''
-
-    // Se for string JSON, tentar parsear
     let parsedContent = this._parseIfString(content, content)
-
-    // Se for array de objetos com estrutura {titulo, conteudo}
     if (Array.isArray(parsedContent)) {
       return parsedContent.map(item => ({
         titulo: item.titulo || item.title || '',
         conteudo: item.conteudo || item.content || item.texto || item.text || ''
       }))
     }
-
-    // Se for string simples, limpar e formatar
     if (typeof parsedContent === 'string') {
       return parsedContent
-        .replace(/<[^>]*>/g, '') // Remove HTML tags
-        .replace(/[\[\]"{}]/g, '') // Remove caracteres JSON
+        .replace(/<[^>]*>/g, '')
+        .replace(/[\[\]"{}]/g, '')
         .trim()
     }
-
     return ''
   }
 
   _formatAddress(client) {
     if (!client) return ''
-
     const parts = [
       client.endereco || client.address,
       client.cidade || client.city,
       client.estado || client.state,
       client.cep || client.zip_code
     ].filter(Boolean)
-
     return parts.join(', ')
-  }
-
-  _normalizeEventData(proposal) {
-    return {
-      nome: proposal.title || '',
-      tipo: proposal.event_type || '',
-      participantes: proposal.participants_count || '',
-      local: proposal.location || '',
-      data_inicio: proposal.start_date ? this.dateFormatter.format(new Date(proposal.start_date)) : '',
-      data_fim: proposal.end_date ? this.dateFormatter.format(new Date(proposal.end_date)) : '',
-      horario_inicio: proposal.start_time || '',
-      horario_fim: proposal.end_time || '',
-      empresa_contratante: proposal.contractor_name || '',
-      solicitante: proposal.requester_name || '',
-      telefone: proposal.phone || '',
-      email: proposal.email || ''
-    }
   }
 }
 

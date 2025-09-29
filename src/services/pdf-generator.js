@@ -11,6 +11,9 @@ class PDFGenerator {
     this.pageHeight = 297 // será recalculado
     this.showPrices = true // NEW
     this.HEADER = { y: 6, height: 18, gapAfter: 8, maxWidthRatio: 0.65 };
+    this.bottomMargin = 25;                 // margem inferior usada nos cálculos
+    this.WIDOW = { minBottomLines: 3 };     // não deixar menos que 3 linhas no fim da página
+
 
 
     // Constantes de layout (mm) - conforme especificação
@@ -122,6 +125,79 @@ class PDFGenerator {
   _moveY(mm) {
     this.currentY += mm
   }
+
+  // Largura de um espaço na fonte/tamanho atuais
+  _getSpaceW() {
+    return this.doc.getTextWidth(' ');
+  }
+
+  /**
+   * Desenha um parágrafo justificado.
+   * - text: string do parágrafo
+   * - opts: { x, maxWidth, lineHeight, firstLineIndent, after }
+   */
+  _drawJustifiedParagraph(text, opts = {}) {
+    const doc = this.doc;
+    const x0 = opts.x ?? this.SPACE.marginX;
+    const maxW = opts.maxWidth ?? this.contentWidth;
+    const lineH = opts.lineHeight ?? 5.0;
+    const indent = opts.firstLineIndent ?? 0; // mm na 1ª linha
+    const after = opts.after ?? 2.0;
+
+    const words = String(text || '').replace(/\s+/g, ' ').trim().split(' ');
+    const spaceW = this._getSpaceW();
+
+    let i = 0;
+    let first = true;
+
+    while (i < words.length) {
+      // espaço útil desta linha
+      const avail = maxW - (first ? indent : 0);
+
+      // escolhe palavras que cabem
+      let j = i, width = 0;
+      while (j < words.length) {
+        const w = doc.getTextWidth(words[j]);
+        const add = (width === 0 ? w : (spaceW + w));
+        if (width + add > avail) break;
+        width += add;
+        j++;
+      }
+
+      const lineWords = words.slice(i, j);
+      const isLast = (j >= words.length);
+      const gaps = Math.max(0, lineWords.length - 1);
+
+      this._checkPageBreak(lineH);
+      let x = x0 + (first ? indent : 0);
+      const y = this.currentY;
+
+      if (gaps === 0 || isLast) {
+        // sem justificação (uma palavra ou última linha)
+        doc.text(lineWords.join(' '), x, y);
+      } else {
+        // distribui sobra entre os espaços
+        const base = lineWords.reduce((acc, w, k) => acc + doc.getTextWidth(w) + (k ? spaceW : 0), 0);
+        const extra = Math.max(0, avail - base);
+        const addPerGap = extra / gaps;
+
+        for (let k = 0; k < lineWords.length; k++) {
+          const w = lineWords[k];
+          doc.text(w, x, y);
+          if (k < lineWords.length - 1) {
+            x += doc.getTextWidth(w) + spaceW + addPerGap;
+          }
+        }
+      }
+
+      this.currentY += lineH;
+      i = j;
+      first = false;
+    }
+
+    this.currentY += after; // respiro após o parágrafo
+  }
+
 
   _drawTitleBar(text, color = [66, 133, 244]) {
     this._checkPageBreak(this.SPACE.sectionTop + this.SPACE.titleHeight + 2);
@@ -283,35 +359,35 @@ class PDFGenerator {
         this._addEventSection(pdfData.event)
       }
 
-// Itens (sempre renderiza)
-this._addItemsSection(
-  pdfData.items || [],
-  'Prestações de Serviço',
-  'SUBTOTAL PRESTAÇÕES DE SERVIÇO',
-  pdfData.totals?.subtotal_itens_formatted
-);
+      // Itens (sempre renderiza)
+      this._addItemsSection(
+        pdfData.items || [],
+        'Prestações de Serviço',
+        'SUBTOTAL PRESTAÇÕES DE SERVIÇO',
+        pdfData.totals?.subtotal_itens_formatted
+      );
 
-// Insumos (só renderiza se houver)
-const supplies = Array.isArray(pdfData.supplies) ? pdfData.supplies : [];
-if (supplies.length > 0) {
-  this._addItemsSection(
-    supplies,
-    'Insumos',
-    'SUBTOTAL INSUMOS',
-    pdfData.totals?.subtotal_insumos_formatted
-  );
-}
+      // Insumos (só renderiza se houver)
+      const supplies = Array.isArray(pdfData.supplies) ? pdfData.supplies : [];
+      if (supplies.length > 0) {
+        this._addItemsSection(
+          supplies,
+          'Insumos',
+          'SUBTOTAL INSUMOS',
+          pdfData.totals?.subtotal_insumos_formatted
+        );
+      }
 
-// Opcionais (já era condicional)
-const optionals = Array.isArray(pdfData.optionals) ? pdfData.optionals : [];
-if (optionals.length > 0) {
-  this._addItemsSection(
-    optionals,
-    'Opcionais Não Inclusos',
-    'SUBTOTAL OPCIONAIS NÃO INCLUSOS',
-    pdfData.totals?.subtotal_opcionais_formatted
-  );
-}
+      // Opcionais (já era condicional)
+      const optionals = Array.isArray(pdfData.optionals) ? pdfData.optionals : [];
+      if (optionals.length > 0) {
+        this._addItemsSection(
+          optionals,
+          'Opcionais Não Inclusos',
+          'SUBTOTAL OPCIONAIS NÃO INCLUSOS',
+          pdfData.totals?.subtotal_opcionais_formatted
+        );
+      }
 
       // TOTAL GERAL (apenas o banner)
       this._addDetailedTotalsSection(pdfData.totals, pdfData.optionals);
@@ -483,187 +559,187 @@ if (optionals.length > 0) {
     return s !== String(text).trim() ? (s.slice(0, -1) + '…') : s;
   }
 
-_addItemsSection(items, title, subtotalLabel, subtotalValue) {
-  this._checkPageBreak(28);
+  _addItemsSection(items, title, subtotalLabel, subtotalValue) {
+    this._checkPageBreak(28);
 
-  const doc = this.doc;
-  const M = this.SPACE.marginX;
-  const pageW = doc.internal.pageSize.getWidth();
-  const tableW = pageW - (M * 2);
+    const doc = this.doc;
+    const M = this.SPACE.marginX;
+    const pageW = doc.internal.pageSize.getWidth();
+    const tableW = pageW - (M * 2);
 
-  // —— estilos da tabela/banners ——
-  const SUB_H = 7.2;                 // altura do banner de subtotal
-  const BANNER_FS = 11;              // fonte dos banners
-  const ROW_H = 10.2;                // altura das linhas do corpo
-  const HEAD_H = 8.6;                // altura do cabeçalho
-  const PAD_X = 2, PAD_Y = 1.2;
-  const NAME_FS = 9.6, DESC_FS = 8.7, DESC_COLOR = [100, 100, 100];
+    // —— estilos da tabela/banners ——
+    const SUB_H = 7.2;                 // altura do banner de subtotal
+    const BANNER_FS = 11;              // fonte dos banners
+    const ROW_H = 10.2;                // altura das linhas do corpo
+    const HEAD_H = 8.6;                // altura do cabeçalho
+    const PAD_X = 2, PAD_Y = 1.2;
+    const NAME_FS = 9.6, DESC_FS = 8.7, DESC_COLOR = [100, 100, 100];
 
-  // cores
-  const titleColor    = [66, 133, 244];  // azul do título de seção
-  const subtotalColor = [214, 124, 28];  // laranja do subtotal
-  const headColor     = [10, 42, 102];   // azul escuro do head da tabela
+    // cores
+    const titleColor = [66, 133, 244];  // azul do título de seção
+    const subtotalColor = [214, 124, 28];  // laranja do subtotal
+    const headColor = [10, 42, 102];   // azul escuro do head da tabela
 
-  // ===== Quebra antecipada para não “quebrar” a seção =====
-  // espaço mínimo: título completo + cabeçalho da tabela + 1 linha
-  const MIN_FOR_SECTION =
-    this.SPACE.sectionTop +
-    this.SPACE.titleHeight +
-    this.SPACE.afterTitle +
-    HEAD_H +
-    ROW_H +
-    4; // respiro
-  this._checkPageBreak(MIN_FOR_SECTION);
+    // ===== Quebra antecipada para não “quebrar” a seção =====
+    // espaço mínimo: título completo + cabeçalho da tabela + 1 linha
+    const MIN_FOR_SECTION =
+      this.SPACE.sectionTop +
+      this.SPACE.titleHeight +
+      this.SPACE.afterTitle +
+      HEAD_H +
+      ROW_H +
+      4; // respiro
+    this._checkPageBreak(MIN_FOR_SECTION);
 
-  // ====== TÍTULO (mesmo padrão do “DADOS DO EVENTO”) ======
-  this._drawTitleBar(String(title).toUpperCase(), titleColor);
+    // ====== TÍTULO (mesmo padrão do “DADOS DO EVENTO”) ======
+    this._drawTitleBar(String(title).toUpperCase(), titleColor);
 
-  // Título mais perto da tabela: reduz o gap pós-título
-  const desiredGap = 1.0; // ~1mm
-  const reduceBy = Math.max(0, (this.SPACE.afterTitle - desiredGap));
-  this.currentY -= reduceBy;
+    // Título mais perto da tabela: reduz o gap pós-título
+    const desiredGap = 1.0; // ~1mm
+    const reduceBy = Math.max(0, (this.SPACE.afterTitle - desiredGap));
+    this.currentY -= reduceBy;
 
-  // ===== sem itens?
-  if (!items || items.length === 0) {
-    doc.setFont('helvetica', 'italic'); // Arial no mapeamento
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`Nenhum item em ${title.toLowerCase()}`, M, this.currentY);
-    this._moveY(8);
-    return;
-  }
-
-  // ===== cabeçalho/colunas
-  const head = this.showPrices ? [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']] : [['Item', 'Qtd']];
-
-  const columnStyles = this.showPrices
-    ? {
-        0: { cellWidth: tableW * 0.50, halign: 'left',  valign: 'middle' },
-        1: { cellWidth: tableW * 0.11, halign: 'center',valign: 'middle' },
-        2: { cellWidth: tableW * 0.195,halign: 'right', valign: 'middle' },
-        3: { cellWidth: tableW * 0.195,halign: 'right', valign: 'middle' },
-      }
-    : {
-        0: { cellWidth: tableW * 0.82, halign: 'left',  valign: 'middle' },
-        1: { cellWidth: tableW * 0.18, halign: 'center',valign: 'middle' },
-      };
-
-  // ===== dados + subtotal calculado da seção (mesmo quando ocultando preços)
-  let subtotalSum = 0;
-
-  const tableData = items.map(it => {
-    const name = String(it.codigo || it.name || it.product_name || it.titulo || it.item_name || '-').trim();
-    const desc  = String(it.descricao || it.description || it.product_description || '').trim();
-    const qty   = Number(it.quantidade ?? it.qtd ?? it.qtde ?? 0) || 0;
-
-    if (!this.showPrices) {
-      const unitRaw = it.valor_unitario ?? it.price ?? it.unit_price ?? 0;
-      const unitNum = this._parseCurrencyToNumber(unitRaw);
-      subtotalSum += qty * (Number.isFinite(unitNum) ? unitNum : 0);
-      return [{ name, desc }, String(qty)];
+    // ===== sem itens?
+    if (!items || items.length === 0) {
+      doc.setFont('helvetica', 'italic'); // Arial no mapeamento
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Nenhum item em ${title.toLowerCase()}`, M, this.currentY);
+      this._moveY(8);
+      return;
     }
 
-    const unitRaw =
-      it.valor_unitario ?? it.unitario ?? it.preco_unitario ??
-      it.valor ?? it.valor_unitario_value ?? it.unit_value ?? it.valorUnitario;
+    // ===== cabeçalho/colunas
+    const head = this.showPrices ? [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']] : [['Item', 'Qtd']];
 
-    const unitNum = this._parseCurrencyToNumber(unitRaw);
-
-    const subtotalProvided =
-      it.subtotal ?? it.sub_total ?? it.subtotal_value ?? it.total ?? it.total_value;
-
-    const subtotalNum = (subtotalProvided != null && subtotalProvided !== '')
-      ? this._parseCurrencyToNumber(subtotalProvided)
-      : (qty * unitNum);
-
-    subtotalSum += Number.isFinite(subtotalNum) ? subtotalNum : 0;
-
-    const unitDisplay = it.valor_unitario_formatted ??
-      (typeof unitRaw === 'string' && unitRaw.trim() ? unitRaw : this._formatCurrency(unitNum));
-
-    const subtotalDisplay = it.subtotal_formatted ?? this._formatCurrency(subtotalNum);
-
-    return [{ name, desc }, String(qty), unitDisplay, subtotalDisplay];
-  });
-
-  // ===== tabela
-  doc.autoTable({
-    startY: this.currentY,
-    head,
-    body: tableData,
-    theme: 'grid',
-    styles: {
-      fontSize: 8,
-      lineWidth: 0.1,
-      cellPadding: { top: PAD_Y, right: PAD_X, bottom: PAD_Y, left: PAD_X },
-      minCellHeight: ROW_H,
-      valign: 'middle'
-    },
-    headStyles: {
-      fillColor: headColor,
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      halign: 'center',
-      valign: 'middle',
-      cellPadding: { top: 1.0, right: 1.4, bottom: 1.0, left: 1.4 },
-      minCellHeight: HEAD_H,
-    },
-    columnStyles,
-    // mantém a margem superior abaixo do cabeçalho em TODAS as páginas
-    margin: { top: this._headerContentStartY(), left: M, right: M },
-    pageBreak: 'auto',
-    showHead: 'everyPage',
-
-    didParseCell: (data) => {
-      if (data.section === 'body' && data.column.index === 0 && typeof data.cell.raw === 'object') {
-        data.cell.text = '';
-        data.cell.styles.minCellHeight = ROW_H;
+    const columnStyles = this.showPrices
+      ? {
+        0: { cellWidth: tableW * 0.50, halign: 'left', valign: 'middle' },
+        1: { cellWidth: tableW * 0.11, halign: 'center', valign: 'middle' },
+        2: { cellWidth: tableW * 0.195, halign: 'right', valign: 'middle' },
+        3: { cellWidth: tableW * 0.195, halign: 'right', valign: 'middle' },
       }
-    },
-    didDrawCell: (data) => {
-      if (data.section !== 'body' || data.column.index !== 0 || typeof data.cell.raw !== 'object') return;
-      const { x, y, width, height } = data.cell;
-      const { name, desc } = data.cell.raw;
-      const maxW = width - PAD_X * 2;
+      : {
+        0: { cellWidth: tableW * 0.82, halign: 'left', valign: 'middle' },
+        1: { cellWidth: tableW * 0.18, halign: 'center', valign: 'middle' },
+      };
 
-      doc.setFont('helvetica', 'bold');    // Arial (mapeado)
-      doc.setFontSize(NAME_FS);
-      doc.setTextColor(0, 0, 0);
-      doc.text(this._fitOneLine(name, maxW), x + PAD_X, y + PAD_Y + 3);
+    // ===== dados + subtotal calculado da seção (mesmo quando ocultando preços)
+    let subtotalSum = 0;
 
-      if (desc) {
-        doc.setFont('helvetica', 'normal'); // Arial
-        doc.setFontSize(DESC_FS);
-        doc.setTextColor(...DESC_COLOR);
-        doc.text(this._fitOneLine(desc, maxW), x + PAD_X, y + height - PAD_Y + 0.2);
+    const tableData = items.map(it => {
+      const name = String(it.codigo || it.name || it.product_name || it.titulo || it.item_name || '-').trim();
+      const desc = String(it.descricao || it.description || it.product_description || '').trim();
+      const qty = Number(it.quantidade ?? it.qtd ?? it.qtde ?? 0) || 0;
+
+      if (!this.showPrices) {
+        const unitRaw = it.valor_unitario ?? it.price ?? it.unit_price ?? 0;
+        const unitNum = this._parseCurrencyToNumber(unitRaw);
+        subtotalSum += qty * (Number.isFinite(unitNum) ? unitNum : 0);
+        return [{ name, desc }, String(qty)];
+      }
+
+      const unitRaw =
+        it.valor_unitario ?? it.unitario ?? it.preco_unitario ??
+        it.valor ?? it.valor_unitario_value ?? it.unit_value ?? it.valorUnitario;
+
+      const unitNum = this._parseCurrencyToNumber(unitRaw);
+
+      const subtotalProvided =
+        it.subtotal ?? it.sub_total ?? it.subtotal_value ?? it.total ?? it.total_value;
+
+      const subtotalNum = (subtotalProvided != null && subtotalProvided !== '')
+        ? this._parseCurrencyToNumber(subtotalProvided)
+        : (qty * unitNum);
+
+      subtotalSum += Number.isFinite(subtotalNum) ? subtotalNum : 0;
+
+      const unitDisplay = it.valor_unitario_formatted ??
+        (typeof unitRaw === 'string' && unitRaw.trim() ? unitRaw : this._formatCurrency(unitNum));
+
+      const subtotalDisplay = it.subtotal_formatted ?? this._formatCurrency(subtotalNum);
+
+      return [{ name, desc }, String(qty), unitDisplay, subtotalDisplay];
+    });
+
+    // ===== tabela
+    doc.autoTable({
+      startY: this.currentY,
+      head,
+      body: tableData,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        lineWidth: 0.1,
+        cellPadding: { top: PAD_Y, right: PAD_X, bottom: PAD_Y, left: PAD_X },
+        minCellHeight: ROW_H,
+        valign: 'middle'
+      },
+      headStyles: {
+        fillColor: headColor,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center',
+        valign: 'middle',
+        cellPadding: { top: 1.0, right: 1.4, bottom: 1.0, left: 1.4 },
+        minCellHeight: HEAD_H,
+      },
+      columnStyles,
+      // mantém a margem superior abaixo do cabeçalho em TODAS as páginas
+      margin: { top: this._headerContentStartY(), left: M, right: M },
+      pageBreak: 'auto',
+      showHead: 'everyPage',
+
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 0 && typeof data.cell.raw === 'object') {
+          data.cell.text = '';
+          data.cell.styles.minCellHeight = ROW_H;
+        }
+      },
+      didDrawCell: (data) => {
+        if (data.section !== 'body' || data.column.index !== 0 || typeof data.cell.raw !== 'object') return;
+        const { x, y, width, height } = data.cell;
+        const { name, desc } = data.cell.raw;
+        const maxW = width - PAD_X * 2;
+
+        doc.setFont('helvetica', 'bold');    // Arial (mapeado)
+        doc.setFontSize(NAME_FS);
         doc.setTextColor(0, 0, 0);
-      }
-    },
+        doc.text(this._fitOneLine(name, maxW), x + PAD_X, y + PAD_Y + 3);
 
-    // 👉 desenha o header (logo) ANTES de imprimir conteúdo em páginas novas
-    didAddPage: () => {
-      this._drawHeaderImageOnPage();
-    },
-  });
+        if (desc) {
+          doc.setFont('helvetica', 'normal'); // Arial
+          doc.setFontSize(DESC_FS);
+          doc.setTextColor(...DESC_COLOR);
+          doc.text(this._fitOneLine(desc, maxW), x + PAD_X, y + height - PAD_Y + 0.2);
+          doc.setTextColor(0, 0, 0);
+        }
+      },
 
-  this.currentY = doc.lastAutoTable.finalY + 2;
+      // 👉 desenha o header (logo) ANTES de imprimir conteúdo em páginas novas
+      didAddPage: () => {
+        this._drawHeaderImageOnPage();
+      },
+    });
 
-  // ===== SUBTOTAL DA SEÇÃO (banner laranja)
-  const subY = this.currentY;
-  doc.setFillColor(...subtotalColor);
-  doc.rect(M, subY, tableW, SUB_H, 'F');
+    this.currentY = doc.lastAutoTable.finalY + 2;
 
-  const valor = this._formatCurrency(subtotalSum);
-  doc.setFont('helvetica', 'bold'); // Arial
-  doc.setFontSize(BANNER_FS);
-  doc.setTextColor(0, 0, 0);
-  doc.text(`${subtotalLabel}: ${valor}`, M + tableW - 8, subY + SUB_H / 2, {
-    align: 'right',
-    baseline: 'middle'
-  });
+    // ===== SUBTOTAL DA SEÇÃO (banner laranja)
+    const subY = this.currentY;
+    doc.setFillColor(...subtotalColor);
+    doc.rect(M, subY, tableW, SUB_H, 'F');
 
-  this.currentY = subY + SUB_H + 8;
-}
+    const valor = this._formatCurrency(subtotalSum);
+    doc.setFont('helvetica', 'bold'); // Arial
+    doc.setFontSize(BANNER_FS);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`${subtotalLabel}: ${valor}`, M + tableW - 8, subY + SUB_H / 2, {
+      align: 'right',
+      baseline: 'middle'
+    });
+
+    this.currentY = subY + SUB_H + 8;
+  }
 
 
 
@@ -704,44 +780,120 @@ _addItemsSection(items, title, subtotalLabel, subtotalValue) {
   }
 
   _addGreySection(title, content) {
-    // usa a mesma barra/tipografia dos demais títulos
+    // barra/título
     this._drawTitleBar(String(title).toUpperCase(), [66, 133, 244]);
 
-    this.doc.setFont('helvetica', 'normal');
-    this.doc.setFontSize(10);
+    const doc = this.doc;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
 
     const lines = this._normalizeToLines(content);
-    const paraLead = 5.2, bulletLead = 5.0;
+
+    // Heurística: linhas TODAS EM CAIXA-ALTA terminando com ":" viram subtítulos
+    const isUpperHeading = (s) =>
+      /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9\s\-]+:\s*$/u.test(String(s).trim());
 
     for (const raw of lines) {
-      const isBullet = /^[-•]\s*/.test(raw);
-      const text = raw.replace(/^[-•]\s*/, '');
-      if (isBullet) this._bullet(text, bulletLead);
-      else this._paragraph(text, paraLead);
+      if (!raw) continue;
+      const txt = String(raw).trim();
+
+      // bullets (- ou •)
+      const bullet = txt.match(/^[-•]\s*(.*)$/);
+      if (bullet) {
+        const bulletText = bullet[1];
+        // bolinha
+        this._checkPageBreak(5.0);
+        const cy = this.currentY - 1.0 + 1.5;
+        this.doc.circle(this.SPACE.marginX + 2.2, cy, 0.8, 'F');
+
+        // parágrafo justificado com recuo à esquerda
+        this._drawJustifiedParagraph(bulletText, {
+          x: this.SPACE.marginX + 6,
+          maxWidth: this.contentWidth - 8,
+          lineHeight: 5.0,
+          firstLineIndent: 0,
+          after: 1.5
+        });
+        continue;
+      }
+
+      // subtítulo (bold, sem justificar)
+      if (isUpperHeading(txt)) {
+        this._checkPageBreak(5.2);
+        doc.setFont('helvetica', 'bold');
+        this.doc.text(txt, this.SPACE.marginX, this.currentY);
+        this.currentY += 5.2;
+        doc.setFont('helvetica', 'normal');
+        continue;
+      }
+
+      // parágrafo comum justificado (com pequeno recuo na 1ª linha)
+      this._drawJustifiedParagraph(txt, {
+        x: this.SPACE.marginX,
+        maxWidth: this.contentWidth,
+        lineHeight: 5.0,
+        firstLineIndent: 2.5,
+        after: 1.5
+      });
     }
 
-    this._moveY(4);
+    this._moveY(2);
   }
 
 
-  _paragraph(text, lead = 5.0) {
-    if (!text) return;
-    const lines = this.doc.splitTextToSize(text, this.contentWidth);
-    lines.forEach(l => {
-      this.doc.text(l, this.SPACE.marginX, this.currentY);
-      this._moveY(lead);
-    });
+
+_paragraph(text, lead = 5.0) {
+  if (!text) return;
+
+  // quebra o parágrafo considerando a largura útil
+  const lines = this.doc.splitTextToSize(text, this.contentWidth);
+
+  // Se o espaço restante for menor que o necessário para pelo menos N linhas,
+  // já quebra a página ANTES de começar o parágrafo.
+  if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
+    this._safeAddPage();
   }
 
-  _bullet(text, lead = 5.0) {
-    const cx = this.SPACE.marginX + 2.2;
-    const cy = this.currentY - 1.5 + 1.5;
-    this.doc.circle(cx, cy, 0.8, 'F');
+  // imprime linha a linha, mas nunca deixa “só duas” no fim da página
+  for (let i = 0; i < lines.length; i++) {
+    // se o que resta na página é menor que o mínimo, joga a linha inteira pra próxima página
+    if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
+      this._safeAddPage();
+    }
 
-    const lines = this.doc.splitTextToSize(text, this.contentWidth - 8);
-    this.doc.text(lines, this.SPACE.marginX + 6, this.currentY);
-    this._moveY(lead * lines.length);
+    this.doc.text(lines[i], this.SPACE.marginX, this.currentY);
+    this._moveY(lead);
   }
+}
+
+
+_bullet(text, lead = 5.0) {
+  if (!text) return;
+
+  const bulletX = this.SPACE.marginX + 2.2;
+  const lines   = this.doc.splitTextToSize(text, this.contentWidth - 8);
+
+  // garante espaço mínimo antes de começar o item de bullet
+  if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
+    this._safeAddPage();
+  }
+
+  // desenha o bullet e a primeira linha
+  this.doc.circle(bulletX, this.currentY - 1.5 + 1.5, 0.8, 'F');
+  this.doc.text(lines[0], this.SPACE.marginX + 6, this.currentY);
+  this._moveY(lead);
+
+  // demais linhas do mesmo bullet (sem marcar novo círculo)
+  for (let i = 1; i < lines.length; i++) {
+    if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
+      this._safeAddPage();
+    }
+    this.doc.text(lines[i], this.SPACE.marginX + 6, this.currentY);
+    this._moveY(lead);
+  }
+}
+
+
 
   // faixa de aceite/assinatura
   _addAcceptanceBand(companyName, placeDateText) {
@@ -852,6 +1004,17 @@ _addItemsSection(items, title, subtotalLabel, subtotalValue) {
       this.currentY = this._headerContentStartY()
     }
   }
+_remainingSpace() {
+  // quanto espaço ainda resta na página atual (em mm)
+  return this.pageHeight - this.bottomMargin - this.currentY;
+}
+
+_safeAddPage() {
+  // quebra de página que já redesenha o cabeçalho e posiciona o cursor
+  this.doc.addPage();
+  this._drawHeaderImageOnPage();
+  this.currentY = this._headerContentStartY();
+}
 
 
   _formatCurrency(value) {
