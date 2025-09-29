@@ -3252,9 +3252,13 @@ const onQtyChange = (row) => {
 
 /* 3) Card mais compacto (pra caber mais) */
 .proposal-card {
-  padding: 14px 16px;                /* antes: 20px */
-  border-radius: 8px;
+  padding: 14px 16px;      /* já tinha */
+  border-radius: 8px;      /* já tinha */
+  background: #fff;        /* <= aqui */
+  border: 1px solid #eaeaea;      /* opcional, dá contorno */
+  box-shadow: 0 1px 6px rgba(0,0,0,.06); /* opcional */
 }
+
 
 .proposal-card:hover {
   transform: translateY(-2px);
