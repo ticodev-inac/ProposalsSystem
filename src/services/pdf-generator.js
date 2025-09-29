@@ -283,20 +283,36 @@ class PDFGenerator {
         this._addEventSection(pdfData.event)
       }
 
-      // Tabelas + banners de subtotal - MANTENDO OS TÍTULOS ATUAIS
-      this._addItemsSection(pdfData.items || [], 'Prestações de Serviço', 'SUBTOTAL PRESTAÇÕES DE SERVIÇO', pdfData.totals?.subtotal_itens_formatted);
-      this._addItemsSection(pdfData.supplies || [], 'Insumos', 'SUBTOTAL INSUMOS', pdfData.totals?.subtotal_insumos_formatted);
+// Itens (sempre renderiza)
+this._addItemsSection(
+  pdfData.items || [],
+  'Prestações de Serviço',
+  'SUBTOTAL PRESTAÇÕES DE SERVIÇO',
+  pdfData.totals?.subtotal_itens_formatted
+);
 
+// Insumos (só renderiza se houver)
+const supplies = Array.isArray(pdfData.supplies) ? pdfData.supplies : [];
+if (supplies.length > 0) {
+  this._addItemsSection(
+    supplies,
+    'Insumos',
+    'SUBTOTAL INSUMOS',
+    pdfData.totals?.subtotal_insumos_formatted
+  );
+}
 
-      const optionals = Array.isArray(pdfData.optionals) ? pdfData.optionals : [];
-      if (optionals.length > 0) {
-        this._addItemsSection(
-          optionals,
-          'Opcionais Não Inclusos',
-          'SUBTOTAL OPCIONAIS NÃO INCLUSOS',
-          pdfData.totals?.subtotal_opcionais_formatted
-        );
-      }
+// Opcionais (já era condicional)
+const optionals = Array.isArray(pdfData.optionals) ? pdfData.optionals : [];
+if (optionals.length > 0) {
+  this._addItemsSection(
+    optionals,
+    'Opcionais Não Inclusos',
+    'SUBTOTAL OPCIONAIS NÃO INCLUSOS',
+    pdfData.totals?.subtotal_opcionais_formatted
+  );
+}
+
       // TOTAL GERAL (apenas o banner)
       this._addDetailedTotalsSection(pdfData.totals, pdfData.optionals);
 
