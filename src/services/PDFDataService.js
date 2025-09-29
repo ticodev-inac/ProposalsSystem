@@ -33,6 +33,28 @@ class PDFDataService {
     return def
   }
 
+    // --- DATE SAFE: evita o "menos um dia" causado por UTC ---
+  _formatDateLocal(value) {
+    if (!value) return '';
+    // 1) Já em dd/mm/aaaa
+    const mBr = String(value).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (mBr) return `${mBr[1]}/${mBr[2]}/${mBr[3]}`;
+
+    // 2) ISO DATE (aaaa-mm-dd) vindo do Postgres
+    const mIso = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (mIso) return `${mIso[3]}/${mIso[2]}/${mIso[1]}`;
+
+    // 3) Qualquer outra coisa -> cria Date LOCAL e formata
+    try {
+      const d0 = new Date(value);
+      const d  = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()); // local
+      return this.dateFormatter.format(d);
+    } catch {
+      return String(value);
+    }
+  }
+
+
   _parseIfString(value, defaultValue = []) {
     if (typeof value === 'string') {
       try { return JSON.parse(value) } catch { return defaultValue }
@@ -251,8 +273,8 @@ class PDFDataService {
       tipo: proposal.event_type || '',
       participantes: proposal.participants_count || '',
       local: proposal.location || '',
-      data_inicio: proposal.start_date ? this.dateFormatter.format(new Date(proposal.start_date)) : '',
-      data_fim: proposal.end_date ? this.dateFormatter.format(new Date(proposal.end_date)) : '',
+      data_inicio: this._formatDateLocal(proposal.start_date),
+      data_fim: this._formatDateLocal(proposal.end_date),
       horario_inicio: proposal.start_time || '',
       horario_fim: proposal.end_time || '',
       // ✅ usa company_name do cliente (via client_id)
