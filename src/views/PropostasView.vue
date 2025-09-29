@@ -1056,22 +1056,21 @@
             <div class="supplier-selection">
               <div class="form-group">
                 <label for="supplierSelect">Selecione o Fornecedor *</label>
-                <select 
-                  id="supplierSelect" 
-                  v-model="selectedSupplierId" 
-                  @change="onSupplierChange"
-                  class="form-control"
-                  required
-                >
-                  <option value="">Selecione um fornecedor</option>
-                  <option 
-                    v-for="supplier in suppliers" 
-                    :key="supplier.id" 
-                    :value="supplier.id"
-                  >
-                    {{ formatSupplierLabel(supplier) }}
-                  </option>
-                </select>
+<select
+  id="supplierSelect"
+  v-model="form.supplier_id"
+  @change="onSupplierChange"
+  class="form-control"
+  required
+>
+  <option :value="null">Selecione um fornecedor</option>
+  <option v-for="s in suppliers" :key="s.id" :value="s.id">
+    {{ formatSupplierLabel(s) }}
+  </option>
+</select>
+
+
+
               </div>
 
               <div v-if="selectedSupplier" class="supplier-details">
@@ -1212,7 +1211,6 @@ export default {
     // Dados para Fornecedor
     const suppliers = ref([])
     const selectedSupplierId = ref('')
-    const selectedSupplier = ref(null)
     
     // Form data
     const form = ref({
@@ -1432,36 +1430,44 @@ export default {
       }
     }
 
-    // Métodos para Fornecedor (corrigido)
-    const loadSuppliers = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('suppliers')  // Usar diretamente o nome correto
-          .select('*')
-          .order('company_name')
-        
-        if (error) {
-          console.error('Erro ao carregar fornecedores:', error)
-          suppliers.value = []
-          return
-        }
-        
-        suppliers.value = data || []
-      } catch (error) {
-        console.error('Erro ao carregar fornecedores:', error)
-        suppliers.value = []
-      }
-    }
+    const normalizeId = (v) => (v === undefined || v === null || v === '') ? null : String(v);
 
-    const onSupplierChange = () => {
-      if (selectedSupplierId.value) {
-        selectedSupplier.value = suppliers.value.find(s => s.id === selectedSupplierId.value)
-        form.value.supplier_id = selectedSupplierId.value
-      } else {
-        selectedSupplier.value = null
-        form.value.supplier_id = null
-      }
-    }
+function resetSupplierState() {
+  form.value.supplier_id = null;
+  suppliers.value = [];
+}
+
+const loadSuppliers = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('id, company_name, cnpj, email, phone, address, contact_name')
+      .order('company_name');
+
+    if (error) throw error;
+
+    // mantenha id como string para casar com o v-model
+    suppliers.value = (data || []).map(s => ({ ...s, id: String(s.id) }));
+  } catch (err) {
+    console.error('Erro ao carregar fornecedores:', err);
+    suppliers.value = [];
+  }
+};
+
+const selectedSupplier = computed(() => {
+  const id = form.value.supplier_id;
+  if (!id) return null;
+  return suppliers.value.find(s => String(s.id) === String(id)) || null;
+});
+
+const onSupplierChange = () => {
+  const id = form.value.supplier_id;
+  if (!id) return;
+  const ok = suppliers.value.some(s => String(s.id) === String(id));
+  if (!ok) form.value.supplier_id = null;
+};
+
+
 
     const formatCNPJ = (cnpj) => {
       if (!cnpj) return ''
@@ -1474,61 +1480,70 @@ export default {
     }
 
     const openCreateModal = async () => {
-      isEditing.value = false
-      resetForm()
-      currentProposal.value = null
-      
-      // Se está usando um modelo, pré-preencher os dados
-      if (templateId) {
-        await loadTemplateData(templateId)
-      }
-      
-      activeTab.value = 'basic'
-      showModal.value = true
-      
-      // Carregar dados para todas as abas
-      await Promise.all([
-        loadClients(),
-        loadCondicoesGerais(),
-        loadPoliticas(),
-        loadSuppliers()
-      ])
-      
-      // Recalcular totais após carregar dados
-      recalculateTotals()
-    }
+  isEditing.value = false;
+  resetForm();
+  resetSupplierState();
+  currentProposal.value = null;
 
-    const openEditModal = async (proposal) => {
-      resetForm()
-      isEditing.value = true
-      currentProposal.value = proposal
-      // Define contexto de edição para as próximas telas
-      if (proposal?.id) {
-        database.setCurrentProposalId(proposal.id)
-      }
+  if (templateId) {
+    await loadTemplateData(templateId);
+  }
 
-      // Mapeamento explícito para o schema
-      form.value.client_id         = proposal.client_id || null
-      form.value.company_id        = proposal.company_id || null
-      form.value.proposal_number   = proposal.proposal_number || ''
-      form.value.title             = proposal.title || ''
-      form.value.observations      = proposal.description || ''
-      form.value.event_type        = proposal.event_type || ''
-      form.value.participants_count= proposal.participants_count || null
-      form.value.location          = proposal.location || ''
-      form.value.start_date        = proposal.start_date || ''
-      form.value.end_date          = proposal.end_date || ''
-      form.value.start_time        = proposal.start_time || ''
-      form.value.end_time          = proposal.end_time || ''
-      form.value.contractor_name   = proposal.contractor_name || ''
-      form.value.requester_name    = proposal.requester_name || ''
-      form.value.phone             = proposal.phone || ''
-      form.value.email             = proposal.email || ''
-      form.value.status            = proposal.status || 'draft'
-      form.value.status_detalhado  = proposal.status_detalhado || ''
-      form.value.total_amount      = (proposal.total_amount ?? 0)
-      form.value.total_geral       = (proposal.total_geral ?? 0)
-      
+  activeTab.value = 'basic';
+  showModal.value = true;
+
+  await Promise.all([
+    loadClients(),
+    loadCondicoesGerais(),
+    loadPoliticas(),
+    loadSuppliers(),     // lista sempre carregada
+  ]);
+
+  recalculateTotals();
+};
+
+
+const openEditModal = async (proposal) => {
+  resetForm();
+  resetSupplierState();
+  isEditing.value = true;
+
+  // busca o registro completo (o objeto do card pode vir sem supplier_id)
+  let record = proposal;
+  try {
+    const full = await ProposalsService.getProposalById(proposal.id);
+    if (full) record = full;
+  } catch (e) {
+    console.warn('Falha ao buscar proposta completa; usando o objeto do card.', e);
+  }
+
+  currentProposal.value = record;
+  if (record?.id) {
+    database.setCurrentProposalId(record.id);
+  }
+
+  // ===== mapeamento (igual você já tinha, mas usando `record`) =====
+  form.value.client_id          = record.client_id || null;
+  form.value.company_id         = record.company_id || null;
+  form.value.proposal_number    = record.proposal_number || '';
+  form.value.title              = record.title || '';
+  form.value.observations       = record.description || '';
+  form.value.event_type         = record.event_type || '';
+  form.value.participants_count = record.participants_count || null;
+  form.value.location           = record.location || '';
+  form.value.start_date         = record.start_date || '';
+  form.value.end_date           = record.end_date || '';
+  form.value.start_time         = record.start_time || '';
+  form.value.end_time           = record.end_time || '';
+  form.value.contractor_name    = record.contractor_name || '';
+  form.value.requester_name     = record.requester_name || '';
+  form.value.phone              = record.phone || '';
+  form.value.email              = record.email || '';
+  form.value.status             = record.status || 'draft';
+  form.value.status_detalhado   = record.status_detalhado || '';
+  form.value.total_amount       = (record.total_amount ?? 0);
+  form.value.total_geral        = (record.total_geral ?? 0);
+
       // Carregar nome do cliente pelo ID
       if (proposal.client_id) {
         try {
@@ -1596,11 +1611,10 @@ export default {
         politicas.value = []
       }
       
-      // Carregar dados do fornecedor
-      selectedSupplierId.value = proposal.supplier_id || null
-      if (proposal.supplier_id) {
-        loadSuppliers()
-      }
+        // ===== fornecedor =====
+  form.value.supplier_id = normalizeId(record.supplier_id); // <- garante string/null
+  await loadSuppliers();                                     // <- garante options prontos
+
       
       // Carregar exibir_precos com fallback para campos legados
       form.value.exibir_precos = (
@@ -1616,13 +1630,14 @@ export default {
       loadClients()
     }
 
-    const closeModal = () => {
-      showModal.value = false
-      showClientDropdown.value = false
-      clientSearch.value = ''
-      activeTab.value = 'basic'
-      resetForm()
-    }
+const closeModal = () => {
+  showModal.value = false;
+  showClientDropdown.value = false;
+  clientSearch.value = '';
+  activeTab.value = 'basic';
+  resetSupplierState(); // limpa supplier
+  resetForm();
+};
 
 
 
@@ -1702,114 +1717,116 @@ const selectClient = (client) => {
       }
     }
 
-    const buildDbPayload = async () => {
-      const { data: authData } = await supabase.auth.getUser()
-      const userId = authData?.user?.id || null
-      return {
-        client_id: form.value.client_id,
-        company_id: form.value.company_id ?? getCompanyIdFallback(),
-        title: form.value.title,
-        description: form.value.observations || '',
-        status: form.value.status,
-        status_detalhado: form.value.status_detalhado || null,
-        total_amount: form.value.total_amount,
-        total_geral: form.value.total_geral,
-        event_type: form.value.event_type,
-        participants_count: form.value.participants_count,
-        start_date: form.value.start_date || null,
-        end_date: form.value.end_date || null,
-        start_time: form.value.start_time || null,
-        end_time: form.value.end_time || null,
-        location: form.value.location,
-        contractor_name: form.value.contractor_name,
-        requester_name: form.value.requester_name,
-        phone: form.value.phone,
-        email: form.value.email,
-        
-        // Campos JSON (jsonb na tabela)
-        items: JSON.stringify(form.value.items || []),
-        insumos: JSON.stringify(form.value.insumos || []),
-        opcionais: JSON.stringify(form.value.opcionais || []),
-        opcional_nao_inclusos: JSON.stringify([]), // Campo que existe na tabela
-        dados_fornecedor: JSON.stringify({}), // Campo que existe na tabela
-        politicas: JSON.stringify(politicas.value || []),
-        
-        // Campo text (não JSON)
-        condicoes_gerais: condicoesGerais.value || '',
-        
-        // Outros campos
-        supplier_id: selectedSupplierId.value || null,
-        incluir_opcionais: incluirOpcionais.value,
-        total_observations: totalObservations.value || '',
-        observations: form.value.observations || '', // Campo adicional que existe
-        
-        // NEW: campo principal e compatibilidade
-        exibir_precos: form.value.exibir_precos,       // NEW
-        incluir_v_un_itens: form.value.exibir_precos,  // NEW - compatibilidade
-        incluir_v_un_insumos: form.value.exibir_precos,// NEW - compatibilidade
-        incluir_v_un_opcionais: form.value.exibir_precos, // NEW - compatibilidade
-        
-        updated_at: new Date().toISOString(),
-        user_id: userId
-      }
+// ===== Payload completo para INSERT/UPDATE =====
+const buildDbPayload = async () => {
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData?.user?.id || null;
+
+  return {
+    client_id:            form.value.client_id,
+    company_id:           form.value.company_id ?? getCompanyIdFallback(),
+    title:                form.value.title,
+    description:          form.value.observations || '',
+    status:               form.value.status,
+    status_detalhado:     form.value.status_detalhado || null,
+    total_amount:         form.value.total_amount,
+    total_geral:          form.value.total_geral,
+    event_type:           form.value.event_type,
+    participants_count:   form.value.participants_count,
+    start_date:           form.value.start_date || null,
+    end_date:             form.value.end_date || null,
+    start_time:           form.value.start_time || null,
+    end_time:             form.value.end_time || null,
+    location:             form.value.location,
+    contractor_name:      form.value.contractor_name,
+    requester_name:       form.value.requester_name,
+    phone:                form.value.phone,
+    email:                form.value.email,
+
+    // ✅ FORNECEDOR — usar SOMENTE o que está no form
+    supplier_id:          normalizeId(form.value.supplier_id),
+
+    // Campos JSON (jsonb na tabela) – ok enviar string JSON
+    items:                JSON.stringify(form.value.items || []),
+    insumos:              JSON.stringify(form.value.insumos || []),
+    opcionais:            JSON.stringify(form.value.opcionais || []),
+    opcional_nao_inclusos: JSON.stringify([]),
+    dados_fornecedor:     JSON.stringify({}),
+    politicas:            JSON.stringify(politicas.value || []),
+
+    // Campo text (não JSON)
+    condicoes_gerais:     condicoesGerais.value || '',
+
+    incluir_opcionais:    incluirOpcionais.value,
+    total_observations:   totalObservations.value || '',
+    observations:         form.value.observations || '',
+
+    // flags de exibição (principal + compat legada)
+    exibir_precos:        !!form.value.exibir_precos,
+    incluir_v_un_itens:   !!form.value.exibir_precos,
+    incluir_v_un_insumos: !!form.value.exibir_precos,
+    incluir_v_un_opcionais: !!form.value.exibir_precos,
+
+    updated_at:           new Date().toISOString(),
+    user_id:              userId,
+  };
+};
+
+// Campos permitidos para atualização parcial
+const allowedUpdateFields = [
+  'client_id',
+  'title',
+  'description',
+  'status',
+  'status_detalhado',
+  'event_type',
+  'participants_count',
+  'start_date',
+  'end_date',
+  'start_time',
+  'end_time',
+  'location',
+  'contractor_name',
+  'requester_name',
+  'phone',
+  'email',
+  'incluir_opcionais',
+  'exibir_precos',              // principal
+  'incluir_v_un_itens',         // compat
+  'incluir_v_un_insumos',       // compat
+  'incluir_v_un_opcionais',     // compat
+  'total_amount',
+  'total_geral',
+  'items',
+  'insumos',
+  'opcionais',
+  'opcional_nao_inclusos',
+  'dados_fornecedor',
+  'condicoes_gerais',
+  'politicas',
+  'supplier_id',                // ✅ garante update
+  'total_observations',
+  'observations',
+];
+
+// Comparação simples e segura (null/undefined/objetos)
+const isSame = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+// Monta um update com somente os campos alterados
+const buildPartialUpdate = async () => {
+  const next = await buildDbPayload();
+  const current = currentProposal.value || {};
+  const patch = {};
+
+  for (const key of allowedUpdateFields) {
+    if (typeof next[key] !== 'undefined' && !isSame(current[key], next[key])) {
+      patch[key] = next[key];
     }
+  }
 
-    // Campos permitidos para atualização parcial
-    const allowedUpdateFields = [
-      'client_id',
-      'title',
-      'description',
-      'status',
-      'status_detalhado',
-      'event_type',
-      'participants_count',
-      'start_date',
-      'end_date',
-      'start_time',
-      'end_time',
-      'location',
-      'contractor_name',
-      'requester_name',
-      'phone',
-      'email',
-      'incluir_opcionais',
-      'exibir_precos',                 // NEW
-      'incluir_v_un_itens',            // compat
-      'incluir_v_un_insumos',          // compat
-      'incluir_v_un_opcionais',        // compat
-      'total_amount',
-      'total_geral',
-      'items',
-      'insumos',
-      'opcionais',
-      'opcional_nao_inclusos',
-      'dados_fornecedor',
-      'condicoes_gerais',
-      'politicas',
-      'supplier_id',
-      'total_observations',
-      'observations'
-    ]
-
-    // Comparação simples e segura (null/undefined/objetos)
-    const isSame = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
-
-    // Monta um update com somente os campos alterados
-    const buildPartialUpdate = async () => {
-      const next = await buildDbPayload()
-      const current = currentProposal.value || {}
-      const patch = {}
-
-      for (const key of allowedUpdateFields) {
-        if (typeof next[key] !== 'undefined' && !isSame(current[key], next[key])) {
-          patch[key] = next[key]
-        }
-      }
-
-      // Sempre atualiza o updated_at
-      patch.updated_at = new Date().toISOString()
-      return patch
-    }
+  patch.updated_at = new Date().toISOString();
+  return patch;
+};
 
     // Persiste no storage temporário o “basicInfo” para reidratação
     const persistBasicInfo = (proposalLike) => {
