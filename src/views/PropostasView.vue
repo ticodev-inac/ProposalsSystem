@@ -685,34 +685,45 @@
             </div>
 
             <div v-else class="items-list">
-              <div 
-                v-for="(item, index) in form.items" 
-                :key="index"
-                class="item-card"
-              >
-                <div class="item-info">
-                  <h6>{{ item.codigo }}</h6>
-                  <p>{{ item.descricao }}</p>
-                  <div class="item-details">
-                    <span class="badge badge-info">{{ item.categoria }}</span>
-                    <span class="item-price">{{ formatCurrency(item.valor_unitario) }}</span>
-                  </div>
-                </div>
-                <div class="item-controls">
-                  <div class="quantity-switch">
-                    <button @click="decrementItemQuantity(index)" class="qty-btn">
-                      <i class="fas fa-minus"></i>
-                    </button>
-                    <span class="qty-display">{{ item.quantity || 1 }}</span>
-                    <button @click="incrementItemQuantity(index)" class="qty-btn">
-                      <i class="fas fa-plus"></i>
-                    </button>
-                  </div>
-                  <button @click="removeItem(index)" class="btn-delete">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </div>
+<div 
+  v-for="(item, index) in form.items" 
+  :key="index"
+  class="item-card"
+>
+  <div class="item-info">
+    <h6>{{ item.codigo }}</h6>
+    <p>{{ item.descricao }}</p>
+    <div class="item-details">
+      <span class="badge badge-info">{{ item.categoria }}</span>
+      <span class="item-price">{{ formatCurrency(item.valor_unitario) }}</span>
+    </div>
+  </div>
+  <div class="item-controls">
+    <div class="quantity-switch">
+      <button @click="decrementItemQuantity(index)" class="qty-btn">
+        <i class="fas fa-minus"></i>
+      </button>
+
+      <!-- quantidade editável -->
+      <input
+        type="number"
+        class="qty-input"
+        min="1"
+        v-model.number="item.quantity"
+        @input="onQtyChange(item)"
+      />
+
+      <button @click="incrementItemQuantity(index)" class="qty-btn">
+        <i class="fas fa-plus"></i>
+      </button>
+    </div>
+    <button @click="removeItem(index)" class="btn-delete">
+      <i class="fas fa-trash"></i>
+    </button>
+  </div>
+</div>
+
+
             </div>
           </div>
 
@@ -735,34 +746,45 @@
             </div>
 
             <div v-else class="items-list">
-              <div 
-                v-for="(insumo, index) in form.insumos" 
-                :key="index"
-                class="item-card"
-              >
-                <div class="item-info">
-                  <h6>{{ insumo.codigo }}</h6>
-                  <p>{{ insumo.descricao }}</p>
-                  <div class="item-details">
-                    <span class="badge badge-warning">{{ insumo.tipo }}</span>
-                    <span class="item-price">{{ formatCurrency(insumo.valor_unitario) }}</span>
-                  </div>
-                </div>
-                <div class="item-controls">
-                  <div class="quantity-switch">
-                    <button @click="decrementSupplyQuantity(index)" class="qty-btn">
-                      <i class="fas fa-minus"></i>
-                    </button>
-                    <span class="qty-display">{{ insumo.quantity || 1 }}</span>
-                    <button @click="incrementSupplyQuantity(index)" class="qty-btn">
-                      <i class="fas fa-plus"></i>
-                    </button>
-                  </div>
-                  <button @click="removeSupply(index)" class="btn-delete">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </div>
+<div 
+  v-for="(insumo, index) in form.insumos" 
+  :key="index"
+  class="item-card"
+>
+  <div class="item-info">
+    <h6>{{ insumo.codigo }}</h6>
+    <p>{{ insumo.descricao }}</p>
+    <div class="item-details">
+      <span class="badge badge-warning">{{ insumo.tipo }}</span>
+      <span class="item-price">{{ formatCurrency(insumo.valor_unitario) }}</span>
+    </div>
+  </div>
+  <div class="item-controls">
+    <div class="quantity-switch">
+      <button @click="decrementSupplyQuantity(index)" class="qty-btn">
+        <i class="fas fa-minus"></i>
+      </button>
+
+      <!-- quantidade editável -->
+      <input
+        type="number"
+        class="qty-input"
+        min="1"
+        v-model.number="insumo.quantity"
+        @input="onQtyChange(insumo)"
+      />
+
+      <button @click="incrementSupplyQuantity(index)" class="qty-btn">
+        <i class="fas fa-plus"></i>
+      </button>
+    </div>
+    <button @click="removeSupply(index)" class="btn-delete">
+      <i class="fas fa-trash"></i>
+    </button>
+  </div>
+</div>
+
+
             </div>
           </div>
 
@@ -785,34 +807,45 @@
             </div>
 
             <div v-else class="items-list">
-              <div 
-                v-for="(opcional, index) in form.opcionais" 
-                :key="index"
-                class="item-card"
-              >
-                <div class="item-info">
-                  <h6>{{ opcional.codigo }}</h6>
-                  <p>{{ opcional.descricao }}</p>
-                  <div class="item-details">
-                    <span class="badge badge-success">Opcional</span>
-                    <span class="item-price">{{ formatCurrency(opcional.valor_unitario) }}</span>
-                  </div>
-                </div>
-                <div class="item-controls">
-                  <div class="quantity-switch">
-                    <button @click="decrementOptionalQuantity(index)" class="qty-btn">
-                      <i class="fas fa-minus"></i>
-                    </button>
-                    <span class="qty-display">{{ opcional.quantity || 1 }}</span>
-                    <button @click="incrementOptionalQuantity(index)" class="qty-btn">
-                      <i class="fas fa-plus"></i>
-                    </button>
-                  </div>
-                  <button @click="removeOptional(index)" class="btn-delete">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </div>
+<div 
+  v-for="(opcional, index) in form.opcionais" 
+  :key="index"
+  class="item-card"
+>
+  <div class="item-info">
+    <h6>{{ opcional.codigo }}</h6>
+    <p>{{ opcional.descricao }}</p>
+    <div class="item-details">
+      <span class="badge badge-success">Opcional</span>
+      <span class="item-price">{{ formatCurrency(opcional.valor_unitario) }}</span>
+    </div>
+  </div>
+  <div class="item-controls">
+    <div class="quantity-switch">
+      <button @click="decrementOptionalQuantity(index)" class="qty-btn">
+        <i class="fas fa-minus"></i>
+      </button>
+
+      <!-- quantidade editável -->
+      <input
+        type="number"
+        class="qty-input"
+        min="1"
+        v-model.number="opcional.quantity"
+        @input="onQtyChange(opcional)"
+      />
+
+      <button @click="incrementOptionalQuantity(index)" class="qty-btn">
+        <i class="fas fa-plus"></i>
+      </button>
+    </div>
+    <button @click="removeOptional(index)" class="btn-delete">
+      <i class="fas fa-trash"></i>
+    </button>
+  </div>
+</div>
+
+
             </div>
           </div>
 
@@ -2909,6 +2942,14 @@ const selectClient = (client) => {
     (s?.contact_person || s?.contact_name || s?.responsavel || s?.contato || '').trim()
   return contato ? `${empresa} -- ${contato}` : empresa
 }
+
+// quantidade digitável com validação simples
+const onQtyChange = (row) => {
+  const n = Number(row.quantity);
+  if (!Number.isFinite(n) || n < 1) row.quantity = 1;
+  else row.quantity = Math.floor(n);
+};
+
 
     return {
       proposals,
@@ -5317,6 +5358,13 @@ const selectClient = (client) => {
     margin-top: 12px;
     align-self: center;
   }
+}
+
+
+/* mantém o tamanho do campo de quantidade semelhante ao número anterior */
+.quantity-switch .qty-input {
+  width: 48px;
+  text-align: center;
 }
 
 </style>
