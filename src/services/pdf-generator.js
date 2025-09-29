@@ -65,6 +65,22 @@ class PDFGenerator {
       width: this.contentWidth / 2
     }
   }
+
+  // Desenha (ou redesenha) o cabeçalho em todas as páginas já geradas
+  _applyHeaderToAllPages() {
+    if (!this.doc) return;
+    const total = this.doc.internal.getNumberOfPages();
+    const { pageNumber } = this.doc.internal.getCurrentPageInfo(); // para restaurar depois
+
+    for (let i = 1; i <= total; i++) {
+      this.doc.setPage(i);
+      this._drawHeaderImageOnPage(); // usa o mesmo cálculo/altura do seu header
+    }
+
+    this.doc.setPage(pageNumber);
+  }
+
+
   // retorna Y onde o conteúdo pode começar abaixo do cabeçalho
   _headerContentStartY() {
     const headerH = this._lastHeaderH || this.HEADER.height;
@@ -408,9 +424,10 @@ class PDFGenerator {
         `São Paulo, dia ${pdfData.metadata?.data_criacao || ''}`
       );
 
-      // Rodapé (número de páginas)
-      this._addFooter(pdfData)
 
+      this._applyHeaderToAllPages();
+      this._addFooter(pdfData);
+      
       return this.doc
 
     } catch (error) {
@@ -717,7 +734,7 @@ class PDFGenerator {
       },
 
       // 👉 desenha o header (logo) ANTES de imprimir conteúdo em páginas novas
-      didAddPage: () => {
+      didDrawPage: () => {
         this._drawHeaderImageOnPage();
       },
     });
@@ -842,56 +859,56 @@ class PDFGenerator {
 
 
 
-_paragraph(text, lead = 5.0) {
-  if (!text) return;
+  _paragraph(text, lead = 5.0) {
+    if (!text) return;
 
-  // quebra o parágrafo considerando a largura útil
-  const lines = this.doc.splitTextToSize(text, this.contentWidth);
+    // quebra o parágrafo considerando a largura útil
+    const lines = this.doc.splitTextToSize(text, this.contentWidth);
 
-  // Se o espaço restante for menor que o necessário para pelo menos N linhas,
-  // já quebra a página ANTES de começar o parágrafo.
-  if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
-    this._safeAddPage();
-  }
-
-  // imprime linha a linha, mas nunca deixa “só duas” no fim da página
-  for (let i = 0; i < lines.length; i++) {
-    // se o que resta na página é menor que o mínimo, joga a linha inteira pra próxima página
+    // Se o espaço restante for menor que o necessário para pelo menos N linhas,
+    // já quebra a página ANTES de começar o parágrafo.
     if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
       this._safeAddPage();
     }
 
-    this.doc.text(lines[i], this.SPACE.marginX, this.currentY);
-    this._moveY(lead);
-  }
-}
+    // imprime linha a linha, mas nunca deixa “só duas” no fim da página
+    for (let i = 0; i < lines.length; i++) {
+      // se o que resta na página é menor que o mínimo, joga a linha inteira pra próxima página
+      if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
+        this._safeAddPage();
+      }
 
-
-_bullet(text, lead = 5.0) {
-  if (!text) return;
-
-  const bulletX = this.SPACE.marginX + 2.2;
-  const lines   = this.doc.splitTextToSize(text, this.contentWidth - 8);
-
-  // garante espaço mínimo antes de começar o item de bullet
-  if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
-    this._safeAddPage();
+      this.doc.text(lines[i], this.SPACE.marginX, this.currentY);
+      this._moveY(lead);
+    }
   }
 
-  // desenha o bullet e a primeira linha
-  this.doc.circle(bulletX, this.currentY - 1.5 + 1.5, 0.8, 'F');
-  this.doc.text(lines[0], this.SPACE.marginX + 6, this.currentY);
-  this._moveY(lead);
 
-  // demais linhas do mesmo bullet (sem marcar novo círculo)
-  for (let i = 1; i < lines.length; i++) {
+  _bullet(text, lead = 5.0) {
+    if (!text) return;
+
+    const bulletX = this.SPACE.marginX + 2.2;
+    const lines = this.doc.splitTextToSize(text, this.contentWidth - 8);
+
+    // garante espaço mínimo antes de começar o item de bullet
     if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
       this._safeAddPage();
     }
-    this.doc.text(lines[i], this.SPACE.marginX + 6, this.currentY);
+
+    // desenha o bullet e a primeira linha
+    this.doc.circle(bulletX, this.currentY - 1.5 + 1.5, 0.8, 'F');
+    this.doc.text(lines[0], this.SPACE.marginX + 6, this.currentY);
     this._moveY(lead);
+
+    // demais linhas do mesmo bullet (sem marcar novo círculo)
+    for (let i = 1; i < lines.length; i++) {
+      if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
+        this._safeAddPage();
+      }
+      this.doc.text(lines[i], this.SPACE.marginX + 6, this.currentY);
+      this._moveY(lead);
+    }
   }
-}
 
 
 
@@ -1004,17 +1021,17 @@ _bullet(text, lead = 5.0) {
       this.currentY = this._headerContentStartY()
     }
   }
-_remainingSpace() {
-  // quanto espaço ainda resta na página atual (em mm)
-  return this.pageHeight - this.bottomMargin - this.currentY;
-}
+  _remainingSpace() {
+    // quanto espaço ainda resta na página atual (em mm)
+    return this.pageHeight - this.bottomMargin - this.currentY;
+  }
 
-_safeAddPage() {
-  // quebra de página que já redesenha o cabeçalho e posiciona o cursor
-  this.doc.addPage();
-  this._drawHeaderImageOnPage();
-  this.currentY = this._headerContentStartY();
-}
+  _safeAddPage() {
+    // quebra de página que já redesenha o cabeçalho e posiciona o cursor
+    this.doc.addPage();
+    this._drawHeaderImageOnPage();
+    this.currentY = this._headerContentStartY();
+  }
 
 
   _formatCurrency(value) {
