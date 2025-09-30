@@ -162,6 +162,65 @@ class FixoService {
       throw error
     }
   }
+      // Buscar formas de pagamento
+static async getFormasPagamento() {
+  try {
+    const { data, error } = await supabase
+      .from('fixo_config')
+      .select('*')
+      .eq('tipo', 'pagamento')
+      .single()
+
+    if (error && error.code !== 'PGRST116') throw error
+    return data?.dados || ''
+  } catch (error) {
+    console.error('Erro ao buscar formas de pagamento:', error)
+    return ''
+  }
+}
+
+// Salvar formas de pagamento
+static async saveFormasPagamento(formasPagamento) {
+  try {
+    const { data: existing } = await supabase
+      .from('fixo_config')
+      .select('id')
+      .eq('tipo', 'pagamento')
+      .single()
+
+    if (existing) {
+      const { data, error } = await supabase
+        .from('fixo_config')
+        .update({
+          dados: formasPagamento,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    } else {
+      const { data, error } = await supabase
+        .from('fixo_config')
+        .insert({
+          tipo: 'pagamento',
+          dados: formasPagamento,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    }
+  } catch (error) {
+    console.error('Erro ao salvar formas de pagamento:', error)
+    throw error
+  }
+}
+
+
 }
 
 export { FixoService }

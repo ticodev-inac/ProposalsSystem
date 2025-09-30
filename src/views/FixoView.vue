@@ -7,19 +7,29 @@
     <!-- Sistema de Abas -->
     <div class="tabs-container">
       <div class="tabs-header">
-        <button 
-          class="tab-button" 
+        <button
+          class="tab-button"
           :class="{ active: activeTab === 'condicoes' }"
           @click="activeTab = 'condicoes'"
         >
           Condições Gerais
         </button>
-        <button 
-          class="tab-button" 
+
+        <button
+          class="tab-button"
           :class="{ active: activeTab === 'politica' }"
           @click="activeTab = 'politica'"
         >
           Política de Contratação
+        </button>
+
+        <!-- NOVA ABA -->
+        <button
+          class="tab-button"
+          :class="{ active: activeTab === 'pagamento' }"
+          @click="activeTab = 'pagamento'"
+        >
+          Formas de Pagamento
         </button>
       </div>
 
@@ -33,12 +43,12 @@
         <div class="form-container">
           <div class="form-section">
             <h3>Configurações das Condições Gerais</h3>
-            
+
             <div class="form-group">
               <label>Prazo de Validade da Proposta</label>
-              <input 
-                v-model="condicoesForm.prazoValidadeProposta" 
-                type="text" 
+              <input
+                v-model="condicoesForm.prazoValidadeProposta"
+                type="text"
                 placeholder="Ex: 30 dias | Após o quarto mês"
                 class="form-input"
               />
@@ -46,9 +56,9 @@
 
             <div class="form-group">
               <label>Prazo de Entrega/Execução</label>
-              <input 
-                v-model="condicoesForm.prazoEntregaExecucao" 
-                type="text" 
+              <input
+                v-model="condicoesForm.prazoEntregaExecucao"
+                type="text"
                 placeholder="Ex: 5 dias"
                 class="form-input"
               />
@@ -56,9 +66,9 @@
 
             <div class="form-group">
               <label>Garantia</label>
-              <input 
-                v-model="condicoesForm.garantia" 
-                type="text" 
+              <input
+                v-model="condicoesForm.garantia"
+                type="text"
                 placeholder="Ex: 06 meses"
                 class="form-input"
               />
@@ -66,7 +76,7 @@
 
             <div class="form-group">
               <label>Condições Especiais</label>
-              <textarea 
+              <textarea
                 v-model="condicoesForm.condicoesEspeciais"
                 placeholder="Digite as condições especiais..."
                 rows="6"
@@ -100,8 +110,8 @@
 
             <div v-for="(secao, index) in politicaSections" :key="secao.id" class="policy-section">
               <div class="section-header">
-                <input 
-                  v-model="secao.titulo" 
+                <input
+                  v-model="secao.titulo"
                   placeholder="Título da Seção"
                   class="section-title-input"
                 />
@@ -109,9 +119,9 @@
                   <i class="fas fa-trash"></i>
                 </button>
               </div>
-              
+
               <div class="section-content">
-                <textarea 
+                <textarea
                   v-model="secao.conteudo"
                   placeholder="Conteúdo da seção..."
                   rows="4"
@@ -128,6 +138,61 @@
           </div>
         </div>
       </div>
+
+      <!-- NOVA ABA: Formas de Pagamento -->
+      <div v-if="activeTab === 'pagamento'" class="tab-content">
+        <div class="content-header">
+          <h2>Formas de Pagamento</h2>
+          <p class="subtitle">Configure as opções que aparecerão nas propostas</p>
+        </div>
+
+        <div class="form-container">
+          <div class="form-section">
+            <h3>Configurações de Pagamento</h3>
+
+            <div class="form-group">
+              <label>Forma de Pagamento Personalizada</label>
+              <input
+                v-model="pagamentoForm.formaPersonalizada"
+                type="text"
+                placeholder="Ex: 50% antecipado | 50% 07 DDL"
+                class="form-input"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Forma de Pagamento (Opções Rápidas)</label>
+              <select
+                v-model="pagamentoForm.formaRapida"
+                class="form-input"
+                @change="handleQuickPaymentChange"
+              >
+                <option value="">Selecione ou use o campo personalizado acima</option>
+                <option v-for="opt in quickPaymentOptions" :key="opt" :value="opt">
+                  {{ opt }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Observações sobre Pagamento</label>
+              <textarea
+                v-model="pagamentoForm.observacoes"
+                placeholder="Observações adicionais sobre o pagamento, descontos, etc."
+                rows="4"
+                class="form-textarea"
+              ></textarea>
+            </div>
+
+            <div class="form-actions">
+              <button @click="salvarPagamentos" class="btn btn-primary" :disabled="saving">
+                {{ saving ? 'Salvando...' : 'Salvar Formas de Pagamento' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Fim tabs -->
     </div>
   </div>
 </template>
@@ -141,8 +206,8 @@ export default {
   setup() {
     const activeTab = ref('condicoes')
     const saving = ref(false)
-    
-    // Formulário de Condições Gerais
+
+    // Condições Gerais
     const condicoesForm = ref({
       prazoValidadeProposta: '',
       prazoEntregaExecucao: '',
@@ -150,7 +215,7 @@ export default {
       condicoesEspeciais: ''
     })
 
-    // Seções da Política de Contratação
+    // Política de Contratação
     const politicaSections = ref([
       { id: 1, titulo: 'ALICIAMENTO E CONTRATAÇÃO:', conteudo: '' },
       { id: 2, titulo: 'COMPROMISSOS CONTRATUAIS:', conteudo: '' },
@@ -158,14 +223,34 @@ export default {
       { id: 4, titulo: 'DECLARAÇÃO DE CONFIDENCIALIDADE:', conteudo: '' },
       { id: 5, titulo: 'ACEITE DA PROPOSTA:', conteudo: '' }
     ])
-
     let nextSectionId = 6
+
+    // NOVO: Formas de Pagamento
+    const pagamentoForm = ref({
+      formaPersonalizada: '',
+      formaRapida: '',
+      observacoes: ''
+    })
+    const quickPaymentOptions = [
+      'À vista',
+      '30 dias',
+      '2x sem juros',
+      '3x sem juros',
+      'Cartão de crédito',
+      'PIX'
+    ]
+    const handleQuickPaymentChange = () => {
+      if (pagamentoForm.value.formaRapida) {
+        pagamentoForm.value.formaPersonalizada = pagamentoForm.value.formaRapida
+      }
+    }
 
     const carregarDados = async () => {
       try {
-        const [condicoes, politica] = await Promise.all([
+        const [condicoes, politica, pagamento] = await Promise.all([
           FixoService.getCondicoesGerais(),
-          FixoService.getPoliticaContratacao()
+          FixoService.getPoliticaContratacao(),
+          FixoService.getFormasPagamento() // <-- novo
         ])
 
         if (condicoes) {
@@ -178,6 +263,11 @@ export default {
           if (Array.isArray(dadosPolitica)) {
             politicaSections.value = dadosPolitica
           }
+        }
+
+        if (pagamento) {
+          const dadosPagamento = typeof pagamento === 'string' ? JSON.parse(pagamento) : pagamento
+          pagamentoForm.value = { ...pagamentoForm.value, ...dadosPagamento }
         }
       } catch (error) {
         console.error('Erro ao carregar dados:', error)
@@ -210,6 +300,20 @@ export default {
       }
     }
 
+    // NOVO: salvar formas de pagamento
+    const salvarPagamentos = async () => {
+      try {
+        saving.value = true
+        await FixoService.saveFormasPagamento(JSON.stringify(pagamentoForm.value))
+        alert('Formas de pagamento salvas com sucesso!')
+      } catch (error) {
+        console.error('Erro ao salvar formas de pagamento:', error)
+        alert('Erro ao salvar formas de pagamento')
+      } finally {
+        saving.value = false
+      }
+    }
+
     const adicionarSecao = () => {
       politicaSections.value.push({
         id: nextSectionId++,
@@ -231,12 +335,22 @@ export default {
     return {
       activeTab,
       saving,
+
+      // condicoes
       condicoesForm,
-      politicaSections,
       salvarCondicoes,
+
+      // politica
+      politicaSections,
       salvarPolitica,
       adicionarSecao,
-      removerSecao
+      removerSecao,
+
+      // pagamento
+      pagamentoForm,
+      quickPaymentOptions,
+      handleQuickPaymentChange,
+      salvarPagamentos
     }
   }
 }

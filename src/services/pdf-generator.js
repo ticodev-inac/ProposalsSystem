@@ -311,20 +311,30 @@ class PDFGenerator {
   }
 
 
-  _textRow(label, value, x, y, wrapWidth = this.SPACE.wrapWidth, rowHeight = this.SPACE.row) {
-    if (value === undefined || value === null || value === '') return y
+  // Linha "Rótulo: valor" fluida (sem alinhamento forçado por coluna)
+  _textRowFluid(label, value, x, y, maxWidth, lineHeight = this.SPACE.row) {
+    if (value === undefined || value === null || value === '') return y;
 
-    this.doc.setFont('Arial', 'bold')
-    this.doc.text(label + ':', x, y)
+    // rótulo
+    this.doc.setFont('Arial', 'bold');
+    const labelTxt = `${label}:`;
+    this.doc.text(labelTxt, x, y);
+    const labelW = this.doc.getTextWidth(labelTxt);
 
-    this.doc.setFont('Arial', 'normal')
+    // valor começa depois do rótulo + gap pequeno
+    const valueX = x + labelW + this.LAYOUT.valueGap;     // ex.: 1.6mm
+    const avail = Math.max(20, (maxWidth ?? this.contentWidth) - (labelW + this.LAYOUT.valueGap));
+
+    // valor (quebrando se precisar)
+    this.doc.setFont('Arial', 'normal');
     this.doc.setFontSize(9);
-    const lines = Array.isArray(value) ? value : this.doc.splitTextToSize(String(value), wrapWidth)
-    this.doc.text(lines, x + this.SPACE.labelGap, y)
+    const lines = Array.isArray(value) ? value : this.doc.splitTextToSize(String(value), avail);
+    this.doc.text(lines, valueX, y);
 
-    const blockHeight = Math.max(rowHeight, lines.length * (rowHeight - 1))
-    return y + blockHeight
+    const h = Math.max(lineHeight, lines.length * (lineHeight - 1));
+    return y + h;
   }
+
 
   _estimateBlockHeight(text, lineHeight = this.SPACE.row, wrapWidth = this.SPACE.wrapWidth) {
     if (!text) return lineHeight
@@ -408,13 +418,15 @@ class PDFGenerator {
       // TOTAL GERAL (apenas o banner)
       this._addDetailedTotalsSection(pdfData.totals, pdfData.optionals);
 
-      // Condições e política
       if (pdfData.texts?.conditions) {
-        this._addGreySection('Condições Gerais', pdfData.texts.conditions);
+        this._addConditionsSection(pdfData.texts.conditions);
       }
+
       if (pdfData.texts?.policy) {
         this._addGreySection('Política de Contratação', pdfData.texts.policy);
       }
+
+
       if (pdfData.supplier && pdfData.supplier.nome) {
         this._addSupplierSection(pdfData.supplier)
       }
@@ -427,7 +439,7 @@ class PDFGenerator {
 
       this._applyHeaderToAllPages();
       this._addFooter(pdfData);
-      
+
       return this.doc
 
     } catch (error) {
@@ -804,111 +816,144 @@ class PDFGenerator {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
 
+    // ⬅️ alinhar pelo mesmo recuo do texto do banner (o título usa +6)
+    const left = this.SPACE.marginX + 6;
+    const width = this.contentWidth - 6;
+
     const lines = this._normalizeToLines(content);
 
-    // Heurística: linhas TODAS EM CAIXA-ALTA terminando com ":" viram subtítulos
-    const isUpperHeading = (s) =>
+    // heurísticas
+    const isUpperHeading = s =>
       /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9\s\-]+:\s*$/u.test(String(s).trim());
+
+    const normalize = s =>
+      String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const isCondEspeciais = s =>
+      /^condicoes especiais:\s*$/i.test(normalize(s));
+
+    const isSpecialLead = s =>
+      /^itens\s+nao\s+inclusos.*contratante:\s*$/i.test(normalize(s));
+
+    // novo: garantir título + N linhas
+    const MIN = this.WIDOW?.minBottomLines ?? 3;
+    const headingH = 5.2, lineH = 5.0;
+    const ensureHeadingBlock = () => {
+      if (this._remainingSpace() < headingH + MIN * lineH) this._safeAddPage();
+    };
+
+    // helpers locais já com alinhamento do banner
+    const drawParagraph = (txt) => {
+      this._drawJustifiedParagraph(txt, {
+        x: left,
+        maxWidth: width,
+        lineHeight: 5.0,
+        firstLineIndent: 2.5,
+        after: 1.5
+      });
+    };
+
+    const drawBullet = (txt) => {
+      const lead = 5.0;
+      if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
+        this._safeAddPage();
+      }
+      const cy = this.currentY - 1.0 + 1.5;
+      doc.circle(left + 2.2, cy, 0.8, 'F');
+      this._drawJustifiedParagraph(txt, {
+        x: left + 6,
+        maxWidth: width - 6,
+        lineHeight: 5.0,
+        firstLineIndent: 0,
+        after: 1.5
+      });
+    };
+
+    let inSpecialList = false;
 
     for (const raw of lines) {
       if (!raw) continue;
       const txt = String(raw).trim();
 
-      // bullets (- ou •)
-      const bullet = txt.match(/^[-•]\s*(.*)$/);
-      if (bullet) {
-        const bulletText = bullet[1];
-        // bolinha
-        this._checkPageBreak(5.0);
-        const cy = this.currentY - 1.0 + 1.5;
-        this.doc.circle(this.SPACE.marginX + 2.2, cy, 0.8, 'F');
+      // linha que já vem com marcador
+      const m = txt.match(/^[-•]\s*(.*)$/);
+      if (m) { inSpecialList = true; drawBullet(m[1]); continue; }
 
-        // parágrafo justificado com recuo à esquerda
-        this._drawJustifiedParagraph(bulletText, {
-          x: this.SPACE.marginX + 6,
-          maxWidth: this.contentWidth - 8,
-          lineHeight: 5.0,
-          firstLineIndent: 0,
-          after: 1.5
-        });
-        continue;
-      }
-
-      // subtítulo (bold, sem justificar)
+      // subtítulos (CAIXA-ALTA + ":")
       if (isUpperHeading(txt)) {
+        ensureHeadingBlock();
+        if (isCondEspeciais(txt)) inSpecialList = true; // depois disso vira lista
         this._checkPageBreak(5.2);
         doc.setFont('helvetica', 'bold');
-        this.doc.text(txt, this.SPACE.marginX, this.currentY);
+        doc.text(txt, left, this.currentY);
         this.currentY += 5.2;
         doc.setFont('helvetica', 'normal');
         continue;
       }
 
-      // parágrafo comum justificado (com pequeno recuo na 1ª linha)
-      this._drawJustifiedParagraph(txt, {
-        x: this.SPACE.marginX,
-        maxWidth: this.contentWidth,
-        lineHeight: 5.0,
-        firstLineIndent: 2.5,
-        after: 1.5
-      });
+      // "Itens não inclusos..." em negrito e abre a lista
+      if (isSpecialLead(txt)) {
+        ensureHeadingBlock();
+        this._checkPageBreak(5.2);
+        doc.setFont('helvetica', 'bold');
+        doc.text(txt, left, this.currentY);
+        this.currentY += 5.2;
+        doc.setFont('helvetica', 'normal');
+        inSpecialList = true;
+        continue;
+      }
+
+      // se estamos dentro de "Condições Especiais", tudo vira bullet
+      if (inSpecialList) { drawBullet(txt); continue; }
+
+      // parágrafo normal (alinhado ao banner)
+      drawParagraph(txt);
     }
 
     this._moveY(2);
   }
 
 
-
+  // Parágrafo solto (usado em outros pontos) com viúva/órfã protegida
   _paragraph(text, lead = 5.0) {
     if (!text) return;
-
-    // quebra o parágrafo considerando a largura útil
     const lines = this.doc.splitTextToSize(text, this.contentWidth);
+    const MIN = this.WIDOW?.minBottomLines ?? 3;
 
-    // Se o espaço restante for menor que o necessário para pelo menos N linhas,
-    // já quebra a página ANTES de começar o parágrafo.
-    if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
-      this._safeAddPage();
-    }
+    // quebra antes se não couber o mínimo
+    if (this._remainingSpace() < lead * MIN) this._safeAddPage();
 
-    // imprime linha a linha, mas nunca deixa “só duas” no fim da página
     for (let i = 0; i < lines.length; i++) {
-      // se o que resta na página é menor que o mínimo, joga a linha inteira pra próxima página
-      if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
-        this._safeAddPage();
-      }
-
+      if (this._remainingSpace() < lead * MIN) this._safeAddPage();
       this.doc.text(lines[i], this.SPACE.marginX, this.currentY);
       this._moveY(lead);
     }
   }
 
-
+  // Bullet solto (usado em outros pontos) com viúva/órfã protegida
   _bullet(text, lead = 5.0) {
     if (!text) return;
-
     const bulletX = this.SPACE.marginX + 2.2;
     const lines = this.doc.splitTextToSize(text, this.contentWidth - 8);
+    const MIN = this.WIDOW?.minBottomLines ?? 3;
 
-    // garante espaço mínimo antes de começar o item de bullet
-    if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
-      this._safeAddPage();
-    }
+    // precisa caber pelo menos MIN linhas do bullet atual
+    const need = Math.min(lines.length, MIN) * lead + 2.6;
+    if (this._remainingSpace() < need) this._safeAddPage();
 
-    // desenha o bullet e a primeira linha
+    // primeira linha com bolinha
     this.doc.circle(bulletX, this.currentY - 1.5 + 1.5, 0.8, 'F');
     this.doc.text(lines[0], this.SPACE.marginX + 6, this.currentY);
     this._moveY(lead);
 
-    // demais linhas do mesmo bullet (sem marcar novo círculo)
+    // demais linhas
     for (let i = 1; i < lines.length; i++) {
-      if (this._remainingSpace() < lead * this.WIDOW.minBottomLines) {
-        this._safeAddPage();
-      }
+      if (this._remainingSpace() < lead * MIN) this._safeAddPage();
       this.doc.text(lines[i], this.SPACE.marginX + 6, this.currentY);
       this._moveY(lead);
     }
   }
+
 
 
 
@@ -1131,7 +1176,84 @@ class PDFGenerator {
     for (const row of rows) y = this._drawPairRowFixed(row.left, row.right, y)
     this.currentY = y + this.SPACE.sectionBottom
   }
+
+  // Lista simples (uma coluna): cada linha mede o rótulo e desenha o valor logo após
+  addDataSectionList(title, items) {
+    this._drawTitleBar(String(title).toUpperCase(), [66, 133, 244]);
+    this.doc.setFont('Arial', 'normal');
+    this.doc.setFontSize(10);
+
+    const x = this.SPACE.marginX + 6;     // mesmo alinhamento do texto do banner
+    const maxW = this.contentWidth - 6;   // largura útil nessa coluna
+
+    let y = this.currentY; // logo abaixo da barra
+
+    for (const { label, value, line } of items) {
+      if (value == null || value === '') continue;
+      this._checkPageBreak(this.SPACE.row);
+      y = this._textRowFluid(label, value, x, y, maxW, line || this.SPACE.row);
+    }
+
+    this.currentY = y + this.SPACE.sectionBottom;
+  }
+
+  _addConditionsSection(cond) {
+    if (!cond) return;
+
+    // 1) Bloco empilhado, alinhado com "Condições Especiais"
+    const flat = [
+      { label: 'Forma de Pagamento', value: cond.forma_pagamento },
+      { label: 'Validade', value: cond.validade },
+      { label: 'Execução', value: cond.execucao },
+      { label: 'Garantia', value: cond.garantia },
+    ];
+    // 👉 NÃO chame _drawTitleBar aqui; a própria lista já desenha a barra
+    this.addDataSectionList('Condições Gerais', flat, { indent: 6, drawTitle: true });
+
+    // 2) Condições Especiais (mantém o mesmo alinhamento)
+    const especiais = String(cond.especiais || '').trim();
+    if (!especiais) return;
+
+    // evita título órfão: precisa caber TÍTULO + 3 linhas
+    const MIN = this.WIDOW?.minBottomLines ?? 3;
+    const headingH = 5.2, lineH = 5.0;
+    if (this._remainingSpace() < headingH + MIN * lineH) this._safeAddPage();
+
+    const left = this.SPACE.marginX + 6;
+    const width = this.contentWidth - 6;
+
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(10);
+    this.doc.text('Condições Especiais:', left, this.currentY);
+    this.currentY += headingH;
+    this.doc.setFont('helvetica', 'normal');
+
+    const drawBullet = (txt) => {
+      if (this._remainingSpace() < MIN * lineH) this._safeAddPage();
+      const cy = this.currentY - 1.0 + 1.5;
+      this.doc.circle(left + 2.2, cy, 0.8, 'F');
+      this._drawJustifiedParagraph(txt, {
+        x: left + 6, maxWidth: width - 6, lineHeight: lineH, firstLineIndent: 0, after: 1.5
+      });
+    };
+    const drawPara = (txt) => {
+      this._drawJustifiedParagraph(txt, {
+        x: left, maxWidth: width, lineHeight: lineH, firstLineIndent: 2.5, after: 1.5
+      });
+    };
+
+    especiais.split('\n').forEach(t => {
+      const s = t.trim();
+      if (!s) return;
+      if (/^[-•]\s*/.test(s)) drawBullet(s.replace(/^[-•]\s*/, ''));
+      else drawPara(s);
+    });
+
+    this._moveY(2);
+  }
 }
+
+
 
 // Função de conveniência para gerar PDF
 export async function generatePDF(proposalData, options = {}) {

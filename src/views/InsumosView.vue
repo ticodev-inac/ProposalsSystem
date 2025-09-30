@@ -200,20 +200,21 @@
                   </button>
                 </div>
               </div>
-              <div class="form-group">
-                <label>Valor Unitário: <span class="required">*</span></label>
-                <div class="currency-input">
-                  <span class="currency-symbol">R$</span>
-                  <input 
-                    type="number" 
-                    v-model="currentInsumo.valor_unitario" 
-                    step="0.01"
-                    min="0"
-                    required
-                    placeholder="0,00"
-                  >
-                </div>
-              </div>
+<div class="form-group">
+  <label>Valor Unitário:</label>
+  <div class="currency-input">
+    <span class="currency-symbol">R$</span>
+    <input
+      type="number"
+      v-model.number="currentInsumo.valor_unitario"
+      step="0.01"
+      min="0"
+      inputmode="decimal"
+      placeholder="0,00"
+    >
+  </div>
+</div>
+
             </div>
             
             <div class="form-actions">
@@ -756,74 +757,83 @@ const createQuickType = async () => {
       filteredInsumos.value = filtered
     }
 
-    const saveInsumo = async () => {
-      try {
-        saving.value = true
+const saveInsumo = async () => {
+  try {
+    saving.value = true;
 
-        // Validações
-        if (!currentInsumo.value.codigo?.trim()) {
-          alert('Por favor, informe o código/nome do insumo.')
-          return
-        }
-        if (!currentInsumo.value.descricao?.trim()) {
-          alert('Por favor, informe a descrição do insumo.')
-          return
-        }
-        if (!currentInsumo.value.tipo) {
-          alert('Por favor, selecione o tipo do insumo.')
-          return
-        }
-        if (!currentInsumo.value.unidade) {
-          alert('Por favor, selecione a unidade do insumo.')
-          return
-        }
-        if (!currentInsumo.value.valor_unitario || currentInsumo.value.valor_unitario <= 0) {
-          alert('Por favor, informe um valor unitário válido.')
-          return
-        }
-
-        // Buscar o tipo selecionado
-        const selectedTypeObj = availableTypes.value.find(t => t.name === currentInsumo.value.tipo)
-        
-        const insumoData = {
-          name: currentInsumo.value.codigo.trim(),
-          description: currentInsumo.value.descricao.trim(),
-          type: currentInsumo.value.tipo,
-          type_id: selectedTypeObj?.id || null,
-          price: parseFloat(currentInsumo.value.valor_unitario),
-          unit: currentInsumo.value.unidade,
-          is_active: true
-        }
-
-        if (showEditModal.value) {
-          const { error } = await supabase
-            .from('supplies')
-            .update(insumoData)
-            .eq('id', currentInsumo.value.id)
-
-          if (error) throw error
-        } else {
-          const { error } = await supabase
-            .from('supplies')
-            .insert([insumoData])
-
-          if (error) throw error
-        }
-
-        closeModals()
-        loadInsumos()
-        alert(showEditModal.value ? 'Insumo atualizado com sucesso!' : 'Insumo criado com sucesso!')
-      } catch (error) {
-        console.error('Erro ao salvar insumo:', error)
-        if (error.code === '23505') {
-          alert('Já existe um insumo com este código/nome.')
-        } else {
-          alert('Erro ao salvar insumo: ' + (error && error.message || ''))
-        }
-      } finally {
-        saving.value = false
-      }
+    // --- validações obrigatórias (mantém)
+    if (!currentInsumo.value.codigo?.trim()) {
+      alert('Por favor, informe o código/nome do insumo.');
+      return;
     }
+    if (!currentInsumo.value.descricao?.trim()) {
+      alert('Por favor, informe a descrição do insumo.');
+      return;
+    }
+    if (!currentInsumo.value.tipo) {
+      alert('Por favor, selecione o tipo do insumo.');
+      return;
+    }
+    if (!currentInsumo.value.unidade) {
+      alert('Por favor, selecione a unidade do insumo.');
+      return;
+    }
+
+    // --- NOVO: normaliza o preço (vazio => 0) e só barra NEGATIVO
+    const raw = currentInsumo.value.valor_unitario;
+    const num = Number(raw); // se vier string "0" vira 0
+    if (!Number.isFinite(num)) {
+      alert('Por favor, informe um valor unitário válido.');
+      return;
+    }
+    if (num < 0) {
+      alert('O valor unitário não pode ser negativo.');
+      return;
+    }
+    const valorUnitarioNormalizado = num || 0; // aceita 0
+
+    // tipo selecionado
+    const selectedTypeObj = availableTypes.value.find(t => t.name === currentInsumo.value.tipo);
+
+    const insumoData = {
+      name: currentInsumo.value.codigo.trim(),
+      description: currentInsumo.value.descricao.trim(),
+      type: currentInsumo.value.tipo,
+      type_id: selectedTypeObj?.id || null,
+      // --- NOVO: usa o normalizado
+      price: valorUnitarioNormalizado,
+      unit: currentInsumo.value.unidade,
+      is_active: true
+    };
+
+    if (showEditModal.value) {
+      const { error } = await supabase
+        .from('supplies')
+        .update(insumoData)
+        .eq('id', currentInsumo.value.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from('supplies')
+        .insert([insumoData]);
+      if (error) throw error;
+    }
+
+    closeModals();
+    loadInsumos();
+    alert(showEditModal.value ? 'Insumo atualizado com sucesso!' : 'Insumo criado com sucesso!');
+  } catch (error) {
+    console.error('Erro ao salvar insumo:', error);
+    if (error.code === '23505') {
+      alert('Já existe um insumo com este código/nome.');
+    } else {
+      alert('Erro ao salvar insumo: ' + (error && error.message || ''));
+    }
+  } finally {
+    saving.value = false;
+  }
+};
+
 
     const editInsumo = (insumo) => {
       currentInsumo.value = {

@@ -33,7 +33,7 @@ class PDFDataService {
     return def
   }
 
-    // --- DATE SAFE: evita o "menos um dia" causado por UTC ---
+  // --- DATE SAFE: evita o "menos um dia" causado por UTC ---
   _formatDateLocal(value) {
     if (!value) return '';
     // 1) Já em dd/mm/aaaa
@@ -47,7 +47,7 @@ class PDFDataService {
     // 3) Qualquer outra coisa -> cria Date LOCAL e formata
     try {
       const d0 = new Date(value);
-      const d  = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()); // local
+      const d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()); // local
       return this.dateFormatter.format(d);
     } catch {
       return String(value);
@@ -78,59 +78,52 @@ class PDFDataService {
       const parsedSupplies = this._parseIfString(proposal.insumos, [])
       const parsedOptionals = this._parseIfString(proposal.opcionais, [])
 
-      let policy = this._formatTextContent(proposal.politica)
+      // --- Política (mantém como está) ---
+      let policy = this._formatTextContent(proposal.politica);
       if (!policy) {
         try {
-          const fixoPolicies = await FixoService.getPoliticaContratacao()
-          policy = this._formatTextContent(fixoPolicies)
-          if (!policy) {
-            policy = `POLÍTICAS PADRÃO:
-
-• Cancelamento: Até 48h antes do evento sem custos
-• Alterações: Sujeitas à disponibilidade e custos adicionais
-• Pagamento: Conforme condições acordadas
-• Responsabilidades: Definidas em contrato específico`
-          }
+          const fixoPolicies = await FixoService.getPoliticaContratacao();
+          policy = this._formatTextContent(fixoPolicies) || '';
         } catch {
-          policy = `POLÍTICAS PADRÃO:
-
-• Cancelamento: Até 48h antes do evento sem custos
-• Alterações: Sujeitas à disponibilidade e custos adicionais
-• Pagamento: Conforme condições acordadas
-• Responsabilidades: Definidas em contrato específico`
+          policy = '';
         }
       }
 
-      let conditions = this._formatTextContent(proposal.condicoes_gerais)
-      if (!conditions) {
-        try {
-          const fixoConditions = await FixoService.getCondicoesGerais()
-          conditions = this._formatTextContent(fixoConditions)
-          if (!conditions) {
-            conditions = `CONDIÇÕES GERAIS PADRÃO:
+      // --- Condições Gerais + Forma de Pagamento vindas do FIXO ---
+      let fixoConditionsRaw = await FixoService.getCondicoesGerais();
+      let fixoPaymentRaw = await FixoService.getFormasPagamento?.(); // se já criou no seu FixoService
 
-• Prazo de validade da proposta: 30 dias
-• Prazo de entrega: Conforme acordado
-• Garantia: 12 meses contra defeitos de fabricação
-• Condições especiais: A definir conforme necessidade do evento`
-          }
-        } catch {
-          conditions = `CONDIÇÕES GERAIS PADRÃO:
+      const fixoCond = typeof fixoConditionsRaw === 'string'
+        ? (JSON.parse(fixoConditionsRaw || '{}') || {})
+        : (fixoConditionsRaw || {});
 
-• Prazo de validade da proposta: 30 dias
-• Prazo de entrega: Conforme acordado
-• Garantia: 12 meses contra defeitos de fabricação
-• Condições especiais: A definir conforme necessidade do evento`
-        }
-      }
+      const fixoPay = typeof fixoPaymentRaw === 'string'
+        ? (JSON.parse(fixoPaymentRaw || '{}') || {})
+        : (fixoPaymentRaw || {});
+
+      // 1ª preferência: o que vier salvo na proposta (se você tiver esses campos)
+      // 2ª preferência: o que está no FIXO – aba Formas de Pagamento
+      const formaPagamentoText =
+        (proposal.formas_pagamento && String(proposal.formas_pagamento).trim()) ||
+        fixoPay.personalizada || fixoPay.formaPersonalizada || fixoPay.opcaoRapida || '';
+
+      // Monta objeto para a seção “Condições Gerais”
+      const conditions = {
+        forma_pagamento: formaPagamentoText || '—',
+        validade: proposal.prazo_validade || fixoCond.prazoValidadeProposta || '—',
+        execucao: proposal.prazo_execucao || fixoCond.prazoEntregaExecucao || '—',
+        garantia: proposal.garantia || fixoCond.garantia || '—',
+        especiais: fixoCond.condicoesEspeciais || '' // texto livre (linhas/bullets)
+      };
+
 
       const toBool = (v, def = undefined) => {
         if (typeof v === 'boolean') return v
         if (typeof v === 'number') return v !== 0
         if (typeof v === 'string') {
           const s = v.trim().toLowerCase()
-          if (['true','1','t','yes','y','on'].includes(s)) return true
-          if (['false','0','f','no','n','off',''].includes(s)) return false
+          if (['true', '1', 't', 'yes', 'y', 'on'].includes(s)) return true
+          if (['false', '0', 'f', 'no', 'n', 'off', ''].includes(s)) return false
         }
         return def
       }
@@ -152,7 +145,12 @@ class PDFDataService {
           optionals: parsedOptionals
         }),
 
-        texts: { policy, conditions },
+
+        texts: {
+          policy,
+          conditions // agora é objeto com as 5 chaves acima
+        },
+
 
         display: {
           show_prices: (() => {

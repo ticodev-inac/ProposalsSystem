@@ -1243,7 +1243,7 @@ export default {
       exibir_precos: true // NEW
     })
 
-  // --- AUTO-SAVE / DRAFT BACKUP (ÚNICO) --- //
+// --- AUTO-SAVE / DRAFT BACKUP (ÚNICO) --- //
 const lastSavedAt = ref(null);
 
 // chave de rascunho por proposta (id) ou "new"
@@ -1253,18 +1253,39 @@ const backupKey = computed(() =>
     : 'proposal:draft:new'
 );
 
+// ===== NOVO: metadados e helpers =====
+const DRAFT_SCHEMA = 'proposal-draft@2';
+const toPlain = v => JSON.parse(JSON.stringify(v));
+
+// impede salvar enquanto estamos carregando/mesclando dados
+let initializing = false;
+
 // debounce simples
 const debounce = (fn, wait = 600) => {
   let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
 };
 
+// ===== NOVO: assign sem sobrescrever com undefined
+function deepAssign(target, src) {
+  if (!src || typeof src !== 'object') return target;
+  for (const [k, v] of Object.entries(src)) {
+    if (v === undefined) continue;
+    if (Array.isArray(v))      target[k] = v.slice();
+    else if (v && typeof v === 'object') target[k] = deepAssign(target[k] ?? {}, v);
+    else                       target[k] = v;
+  }
+  return target;
+}
+
 const buildSnapshot = () => ({
-  // salvamos TODO o form (inclui status/status_detalhado/exibir_precos/itens etc.)
-  form: JSON.parse(JSON.stringify(form.value)),
+  __schema: DRAFT_SCHEMA,
+  __proposal_id: currentProposal.value?.id ?? null,
+  __ts: Date.now(),               // timestamp local do snapshot
+  form: toPlain(form.value),      // inclui status/exibir_precos/itens etc.
   incluir_opcionais: !!incluirOpcionais.value,
   total_observations: totalObservations.value,
-  politicas: JSON.parse(JSON.stringify(politicas.value || [])),
-  condicoesGerais: condicoesGerais.value
+  politicas: toPlain(politicas.value || []),
+  condicoesGerais: condicoesGerais.value ?? null
 });
 
 function saveLocalBackup() {
@@ -1277,24 +1298,56 @@ function saveLocalBackup() {
     console.warn('[backup] falhou ao salvar', e);
   }
 }
-const saveLocalBackupDebounced = debounce(saveLocalBackup, 600);
 
-function applySnapshot(snap) {
+// ===== ALTERADO: não salva durante "initializing"
+const saveLocalBackupDebounced = debounce(() => {
+  if (!initializing) saveLocalBackup();
+}, 600);
+
+// ===== NOVO: aplicar snapshot com merge seguro
+function applySnapshotSafe(snap) {
   if (!snap) return;
-  if (snap.form) Object.assign(form.value, snap.form);
-  if ('incluir_opcionais' in snap) incluirOpcionais.value = snap.incluir_opcionais;
-  if ('total_observations' in snap) totalObservations.value = snap.total_observations;
-  if ('politicas' in snap) politicas.value = Array.isArray(snap.politicas) ? snap.politicas : [];
-  if ('condicoesGerais' in snap) condicoesGerais.value = snap.condicoesGerais ?? null;
+  if (snap.form) deepAssign(form.value, snap.form);
+  if ('incluir_opcionais'   in snap) incluirOpcionais.value   = !!snap.incluir_opcionais;
+  if ('total_observations'  in snap) totalObservations.value  = snap.total_observations;
+  if ('politicas'           in snap) politicas.value          = Array.isArray(snap.politicas) ? snap.politicas : [];
+  if ('condicoesGerais'     in snap) condicoesGerais.value    = snap.condicoesGerais ?? null;
   recalculateTotals();
 }
+function isSnapshotUseful(snap) {
+  if (!snap || !snap.form) return false;
+  const f = snap.form || {};
+  const hasTitle  = !!(f.title && String(f.title).trim());
+  const hasItems  = Array.isArray(f.items) && f.items.length > 0;
+  const hasIns    = Array.isArray(f.insumos) && f.insumos.length > 0;
+  const hasOpt    = Array.isArray(f.opcionais) && f.opcionais.length > 0;
+  const hasDates  = !!(f.start_date || f.end_date);
+  const hasTotals = (Number(f.total_amount) > 0) || (Number(f.total_geral) > 0);
+  return hasTitle || hasItems || hasIns || hasOpt || hasDates || hasTotals;
+}
 
-function tryRestoreFromBackup() {
+// ===== ALTERADO: agora checa schema, id e "mais novo que o banco"
+function tryRestoreFromBackup(remoteUpdatedAt) {
   try {
     const raw = localStorage.getItem(backupKey.value);
     if (!raw) { console.log('[backup] nenhum snapshot para', backupKey.value); return false; }
+
     const snap = JSON.parse(raw);
-    applySnapshot(snap);
+    if (snap.__schema !== DRAFT_SCHEMA) return false;
+    if (currentProposal.value?.id && snap.__proposal_id !== currentProposal.value.id) return false;
+
+    const remoteTs = remoteUpdatedAt ? new Date(remoteUpdatedAt).getTime() : 0;
+    const localTs  = snap.__ts || 0;
+    if (remoteTs && localTs && localTs <= remoteTs) {
+      // banco já é mais novo => não restaura
+      return false;
+    }
+    if (!isSnapshotUseful(snap)) {
+      console.log('[backup] snapshot vazio/irrelevante — ignorado');
+      return false;
+    } 
+
+    applySnapshotSafe(snap);
     console.log('[backup] restaurado de', backupKey.value, snap);
     return true;
   } catch (e) {
@@ -1311,34 +1364,25 @@ function clearLocalBackup() {
 }
 
 // salvar ao sair do componente
-onBeforeUnmount(() => { saveLocalBackup(); });
+onBeforeUnmount(() => { try { saveLocalBackup(); } catch {} });
 
 // Salva automaticamente quando QUALQUER campo do form mudar
 watch(form, saveLocalBackupDebounced, { deep: true });
 
 // E quando variáveis fora do form mudam
-watch(
-  [incluirOpcionais, totalObservations, politicas, condicoesGerais],
-  saveLocalBackupDebounced,
-  { deep: true }
-);
+watch([incluirOpcionais, totalObservations, politicas, condicoesGerais], saveLocalBackupDebounced, { deep: true });
 
 // salvar quando listas mudarem
-watch(
-  [() => form.value.items, () => form.value.insumos, () => form.value.opcionais],
-  saveLocalBackupDebounced,
-  { deep: true }
-);
+watch([() => form.value.items, () => form.value.insumos, () => form.value.opcionais], saveLocalBackupDebounced, { deep: true });
 
 // salvar quando status mudar
-watch(() => form.value.status, saveLocalBackupDebounced);
-watch(() => form.value.status_detalhado, saveLocalBackupDebounced);
+watch(() => form.value.status,            saveLocalBackupDebounced);
+watch(() => form.value.status_detalhado,  saveLocalBackupDebounced);
 
 // garante salvar no F5/fechar aba
 const onBeforeUnload = () => { try { saveLocalBackup(); } catch {} };
 onMounted(() => window.addEventListener('beforeunload', onBeforeUnload));
 onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload));
-
 
     // Computed para totais
     const subtotal = computed(() => {
@@ -1575,39 +1619,40 @@ const onSupplierChange = () => {
       return phone.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3')
     }
 
-    const openCreateModal = async () => {
+const openCreateModal = async () => {
   isEditing.value = false;
+  initializing = true;              // <<< NOVO
   resetForm();
   resetSupplierState();
   currentProposal.value = null;
 
-  if (templateId) {
-    await loadTemplateData(templateId);
-  }
+  if (templateId) await loadTemplateData(templateId);
 
   activeTab.value = 'basic';
   showModal.value = true;
 
-await Promise.all([
-  loadClients(),
-  loadCondicoesGerais(),
-  loadPoliticas(),
-  loadSuppliers(),
-]);
+  await Promise.all([
+    loadClients(),
+    loadCondicoesGerais(),
+    loadPoliticas(),
+    loadSuppliers(),
+  ]);
 
-// tenta recuperar rascunho "new" (se existir)
-const restored = tryRestoreFromBackup();
-console.log('[backup] openCreateModal -> restored?', restored, 'key=', backupKey.value);
+  // tenta recuperar rascunho "new" (se existir)
+  const restored = tryRestoreFromBackup(null);   // <<< ALTERADO
+  console.log('[backup] openCreateModal -> restored?', restored, 'key=', backupKey.value);
 
-
-recalculateTotals();
+  initializing = false;            // <<< NOVO
+  recalculateTotals();
 };
 
 
+
 const openEditModal = async (proposal) => {
-  resetForm();
-  resetSupplierState();
-  isEditing.value = true;
+   initializing = true;            // <<< LIGA modo inicialização
+   resetForm();
+   resetSupplierState();
+   isEditing.value = true;
 
   // busca o registro completo (o objeto do card pode vir sem supplier_id)
   let record = proposal;
@@ -1718,22 +1763,23 @@ const openEditModal = async (proposal) => {
       loadClients()
 
       
-      // Carregar exibir_precos com fallback para campos legados
-      form.value.exibir_precos = (
-        proposal.exibir_precos ?? 
-        proposal.incluir_v_un_itens ?? 
-        proposal.incluir_v_un_insumos ?? 
-        proposal.incluir_v_un_opcionais ?? 
-        true
-      )
-      // aplica backup local desta proposta (se existir)
-      const restored = tryRestoreFromBackup();
-      console.log('[backup] openEditModal -> restored?', restored, 'key=', backupKey.value);
+ form.value.exibir_precos      = (
+    record.exibir_precos ??
+    record.incluir_v_un_itens ??
+    record.incluir_v_un_insumos ??
+    record.incluir_v_un_opcionais ??
+    true
+  );
 
+  activeTab.value = 'basic';
+  showModal.value = true;
 
-      activeTab.value = 'basic'
-      showModal.value = true
-    }
+  // <<< NOVO: restaura somente se local for mais novo que o do banco
+  const restored = tryRestoreFromBackup(record.updated_at);
+  console.log('[backup] openEditModal -> restored?', restored, 'key=', backupKey.value);
+
+  initializing = false;                // <<< NOVO
+};
 
 const closeModal = () => {
   showModal.value = false;
