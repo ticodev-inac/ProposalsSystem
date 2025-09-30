@@ -2015,21 +2015,27 @@ const buildPartialUpdate = async () => {
       }
     }
 
-    const getNextProposalNumber = async (clientId) => {
-      if (!clientId) return '1'
-      const { data, error } = await supabase
-        .from('proposals')
-        .select('proposal_number')
-        .eq('client_id', clientId)
-        .order('proposal_number', { ascending: false })
-        .limit(1)
-      if (error) throw error
-      if (data && data.length > 0) {
-        const last = parseInt(data[0].proposal_number) || 0
-        return String(last + 1)
-      }
-      return '1'
-    }
+// começa no 1212 (ou altere como quiser)
+const PROPOSAL_BASE_NUMBER = 1212;
+
+// próxima numeração GLOBAL
+const getNextProposalNumber = async () => {
+  const { data, error } = await supabase
+    .from('proposals')
+    .select('proposal_number')
+    .limit(1000)            // pega um lote; aumente se precisar
+    .order('updated_at', { ascending: false }); // só para trazer os mais novos primeiro
+
+  if (error) throw error;
+
+  let max = PROPOSAL_BASE_NUMBER - 1;
+  for (const row of (data || [])) {
+    const n = parseInt(row.proposal_number, 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  // garante que nunca volta abaixo do base
+  return String(Math.max(max + 1, PROPOSAL_BASE_NUMBER));
+};
 
     const saveProposal = async () => {
       try {
@@ -5250,6 +5256,110 @@ const onQtyChange = (row) => {
   align-items: center;
   flex-wrap: wrap;
 }
+
+/* Selecionar Itens + Selecionar Insumos */
+.item-modal-overlay .item-info h6,
+.supply-modal-overlay .item-info h6 {
+  font-size: 16px;      /* ↑ maior que a descrição */
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0 0 4px;
+  color: #2c3e50;
+}
+
+.item-modal-overlay .item-info p,
+.supply-modal-overlay .item-info p {
+  font-size: 13px;      /* ↓ menor que o título */
+  line-height: 1.35;
+  margin: 0 0 8px;
+  color: #6c757d;
+}
+
+/* (Opcional) em telas grandes, sobe 1px no título */
+@media (min-width: 1280px) {
+  .item-modal-overlay .item-info h6,
+  .supply-modal-overlay .item-info h6 {
+    font-size: 17px;
+  }
+}
+
+/* Editar Proposta -> abas Itens/Insumos (lista já adicionada na proposta) */
+.edit-proposal-modal .item-info h6 {
+  font-size: 16px;     /* maior que a descrição */
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0 0 4px;
+  color: #2c3e50;
+}
+
+.edit-proposal-modal .item-info p {
+  font-size: 13px;     /* menor que o título */
+  line-height: 1.35;
+  margin: 0 0 8px;
+  color: #6c757d;
+}
+
+/* (opcional) em telas grandes sobe 1px no título */
+@media (min-width: 1280px) {
+  .edit-proposal-modal .item-info h6 {
+    font-size: 17px;
+  }
+}
+
+/* ================================
+   TIPOGRAFIA PADRÃO DOS CARDS
+   (título > descrição)
+   ================================ */
+
+/* Seletores dos MODAIS de seleção (itens/insumos/opcionais) */
+.item-modal-overlay .item-info h6,
+.supply-modal-overlay .item-info h6,
+.optional-modal-overlay .item-info h6,
+.modal-content .items-selection-list .item-selection-card .item-info h6 {
+  font-size: 16px;      /* título maior */
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0 0 4px;
+  color: #2c3e50;
+}
+
+.item-modal-overlay .item-info p,
+.supply-modal-overlay .item-info p,
+.optional-modal-overlay .item-info p,
+.modal-content .items-selection-list .item-selection-card .item-info p {
+  font-size: 13px;      /* descrição menor */
+  line-height: 1.35;
+  margin: 0 0 8px;
+  color: #6c757d;
+}
+
+/* Listas nas ABAS do modal de proposta (Itens / Insumos / Opcionais) */
+.tab-pane .items-list .item-card .item-info h6 {
+  font-size: 16px;      /* título maior */
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0 0 4px;
+  color: #2c3e50;
+}
+
+.tab-pane .items-list .item-card .item-info p {
+  font-size: 13px;      /* descrição menor */
+  line-height: 1.35;
+  margin: 0 0 8px;
+  color: #6c757d;
+}
+
+/* Opcional: em telas grandes, sobe 1px no título */
+@media (min-width: 1280px) {
+  .item-modal-overlay .item-info h6,
+  .supply-modal-overlay .item-info h6,
+  .optional-modal-overlay .item-info h6,
+  .modal-content .items-selection-list .item-selection-card .item-info h6,
+  .tab-pane .items-list .item-card .item-info h6 {
+    font-size: 17px;
+  }
+}
+
 
 .badge {
   padding: 4px 8px;
