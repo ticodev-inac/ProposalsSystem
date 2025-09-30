@@ -503,7 +503,7 @@
     </div>
 
     <!-- Modal de Criação/Edição de Proposta -->
-    <div v-if="showModal" class="modal-overlay" @click="onOverlayClick">
+    <div v-if="showModal" class="modal-overlay" @click.self="onOverlayClick">
       <div class="modal" @click.stop>
         <div class="modal-header">
           <h2>{{ isEditing ? 'Editar Proposta' : 'Criar Nova Proposta' }}</h2>
@@ -1125,7 +1125,8 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
+
 import { useRouter, useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import { useDatabaseStore } from '@/stores/database'
@@ -1242,6 +1243,101 @@ export default {
       exibir_precos: true // NEW
     })
 
+  // --- AUTO-SAVE / DRAFT BACKUP (ÚNICO) --- //
+const lastSavedAt = ref(null);
+
+// chave de rascunho por proposta (id) ou "new"
+const backupKey = computed(() =>
+  currentProposal.value?.id
+    ? `proposal:draft:${currentProposal.value.id}`
+    : 'proposal:draft:new'
+);
+
+// debounce simples
+const debounce = (fn, wait = 600) => {
+  let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+};
+
+const buildSnapshot = () => ({
+  // salvamos TODO o form (inclui status/status_detalhado/exibir_precos/itens etc.)
+  form: JSON.parse(JSON.stringify(form.value)),
+  incluir_opcionais: !!incluirOpcionais.value,
+  total_observations: totalObservations.value,
+  politicas: JSON.parse(JSON.stringify(politicas.value || [])),
+  condicoesGerais: condicoesGerais.value
+});
+
+function saveLocalBackup() {
+  try {
+    const snap = buildSnapshot();
+    localStorage.setItem(backupKey.value, JSON.stringify(snap));
+    lastSavedAt.value = new Date();
+    console.log('[backup] salvo', backupKey.value, snap);
+  } catch (e) {
+    console.warn('[backup] falhou ao salvar', e);
+  }
+}
+const saveLocalBackupDebounced = debounce(saveLocalBackup, 600);
+
+function applySnapshot(snap) {
+  if (!snap) return;
+  if (snap.form) Object.assign(form.value, snap.form);
+  if ('incluir_opcionais' in snap) incluirOpcionais.value = snap.incluir_opcionais;
+  if ('total_observations' in snap) totalObservations.value = snap.total_observations;
+  if ('politicas' in snap) politicas.value = Array.isArray(snap.politicas) ? snap.politicas : [];
+  if ('condicoesGerais' in snap) condicoesGerais.value = snap.condicoesGerais ?? null;
+  recalculateTotals();
+}
+
+function tryRestoreFromBackup() {
+  try {
+    const raw = localStorage.getItem(backupKey.value);
+    if (!raw) { console.log('[backup] nenhum snapshot para', backupKey.value); return false; }
+    const snap = JSON.parse(raw);
+    applySnapshot(snap);
+    console.log('[backup] restaurado de', backupKey.value, snap);
+    return true;
+  } catch (e) {
+    console.warn('[backup] falhou ao restaurar', e);
+    return false;
+  }
+}
+
+function clearLocalBackup() {
+  try {
+    localStorage.removeItem(backupKey.value);
+    console.log('[backup] limpo', backupKey.value);
+  } catch {}
+}
+
+// salvar ao sair do componente
+onBeforeUnmount(() => { saveLocalBackup(); });
+
+// Salva automaticamente quando QUALQUER campo do form mudar
+watch(form, saveLocalBackupDebounced, { deep: true });
+
+// E quando variáveis fora do form mudam
+watch(
+  [incluirOpcionais, totalObservations, politicas, condicoesGerais],
+  saveLocalBackupDebounced,
+  { deep: true }
+);
+
+// salvar quando listas mudarem
+watch(
+  [() => form.value.items, () => form.value.insumos, () => form.value.opcionais],
+  saveLocalBackupDebounced,
+  { deep: true }
+);
+
+// salvar quando status mudar
+watch(() => form.value.status, saveLocalBackupDebounced);
+watch(() => form.value.status_detalhado, saveLocalBackupDebounced);
+
+// garante salvar no F5/fechar aba
+const onBeforeUnload = () => { try { saveLocalBackup(); } catch {} };
+onMounted(() => window.addEventListener('beforeunload', onBeforeUnload));
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload));
 
 
     // Computed para totais
@@ -1492,14 +1588,19 @@ const onSupplierChange = () => {
   activeTab.value = 'basic';
   showModal.value = true;
 
-  await Promise.all([
-    loadClients(),
-    loadCondicoesGerais(),
-    loadPoliticas(),
-    loadSuppliers(),     // lista sempre carregada
-  ]);
+await Promise.all([
+  loadClients(),
+  loadCondicoesGerais(),
+  loadPoliticas(),
+  loadSuppliers(),
+]);
 
-  recalculateTotals();
+// tenta recuperar rascunho "new" (se existir)
+const restored = tryRestoreFromBackup();
+console.log('[backup] openCreateModal -> restored?', restored, 'key=', backupKey.value);
+
+
+recalculateTotals();
 };
 
 
@@ -1614,6 +1715,7 @@ const openEditModal = async (proposal) => {
         // ===== fornecedor =====
   form.value.supplier_id = normalizeId(record.supplier_id); // <- garante string/null
   await loadSuppliers();                                     // <- garante options prontos
+      loadClients()
 
       
       // Carregar exibir_precos com fallback para campos legados
@@ -1624,10 +1726,13 @@ const openEditModal = async (proposal) => {
         proposal.incluir_v_un_opcionais ?? 
         true
       )
-      
+      // aplica backup local desta proposta (se existir)
+      const restored = tryRestoreFromBackup();
+      console.log('[backup] openEditModal -> restored?', restored, 'key=', backupKey.value);
+
+
       activeTab.value = 'basic'
       showModal.value = true
-      loadClients()
     }
 
 const closeModal = () => {
@@ -1646,9 +1751,16 @@ const closeModal = () => {
       resetForm()
     }
 
-    const onOverlayClick = () => {
-      closeModal()
-    }
+// se false, clicar fora NÃO fecha; se true, fecha salvando rascunho
+const allowOverlayClose = ref(false)
+
+const onOverlayClick = () => {
+  if (!allowOverlayClose.value) return
+  // fecha como "salvar rascunho"
+  try { saveLocalBackup() } catch {}
+  showModal.value = false
+}
+
 
     const toggleClientDropdown = () => {
       showClientDropdown.value = !showClientDropdown.value
@@ -1900,6 +2012,10 @@ const buildPartialUpdate = async () => {
 
           // Persistir basicInfo no storage temporário
           persistBasicInfo(data)
+          
+          clearLocalBackup()
+          lastSavedAt.value = new Date()
+
         } else {
           // Criação (rascunho com defaults do formulário)
           const proposalData = await buildDbPayload()
@@ -1915,10 +2031,14 @@ const buildPartialUpdate = async () => {
 
           currentProposal.value = data
           proposalId = data?.id
+        
           isEditing.value = true
 
           // Persistir basicInfo do rascunho recém-criado
           persistBasicInfo(data)
+          
+          clearLocalBackup()
+          lastSavedAt.value = new Date()
         }
 
         await loadProposals()
@@ -1953,6 +2073,9 @@ const buildPartialUpdate = async () => {
           currentProposal.value = data
           // Atualiza basicInfo no storage temporário
           persistBasicInfo(data)
+          
+          clearLocalBackup()
+          lastSavedAt.value = new Date()
         } else {
           // Se ainda não existe, cria como rascunho
           const proposalData = await buildDbPayload()
@@ -1969,6 +2092,9 @@ const buildPartialUpdate = async () => {
           if (data?.id) database.setCurrentProposalId(data.id)
 
           persistBasicInfo(data)
+          
+          clearLocalBackup()
+          lastSavedAt.value = new Date()
         }
 
         await loadProposals()
@@ -2229,6 +2355,7 @@ const buildPartialUpdate = async () => {
         checkTemplateUsage() // Verificar uso de modelo
       }
     })
+        
 
     // === VARIÁVEIS PARA MODAL DE ITENS ===
     const showItemModal = ref(false)
