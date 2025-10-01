@@ -11,18 +11,20 @@
       <div class="tabs-header">
         <button 
           class="tab-button" 
-          :class="{ active: activeTab === 'produtos' }"
-          @click="activeTab = 'produtos'"
-        >
-          Produtos
-        </button>
-        <button 
-          class="tab-button" 
           :class="{ active: activeTab === 'servicos' }"
           @click="activeTab = 'servicos'"
         >
           Serviços
         </button>
+        
+        <button 
+          class="tab-button" 
+          :class="{ active: activeTab === 'produtos' }"
+          @click="activeTab = 'produtos'"
+        >
+          Produtos
+        </button>
+
       </div>
       
       <!-- Produtos Tab -->
@@ -839,7 +841,7 @@ import ProductsService from '../services/ProductsService'
 export default {
   name: 'ProdutosServicosView',
   setup() {
-    const activeTab = ref('produtos')
+    const activeTab = ref('servicos')
     const products = ref([])
     const services = ref([])
     const filteredProducts = ref([])

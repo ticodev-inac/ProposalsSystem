@@ -54,16 +54,6 @@ const router = createRouter({
       component: InsumosView
     },
     {
-      path: '/opcionais',
-      name: 'opcionais',
-      component: OpcionaisView
-    },
-    {
-      path: '/total-geral',
-      name: 'total-geral',
-      component: TotalGeralView
-    },
-    {
       path: '/condicoes-gerais',
       name: 'condicoes-gerais',
       component: CondicoesGeraisView

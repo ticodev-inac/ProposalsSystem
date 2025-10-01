@@ -64,18 +64,7 @@
             <span v-if="!sidebarCollapsed">Insumos</span>
           </router-link>
         </li>
-        <li class="menu-item">
-          <router-link to="/opcionais" class="menu-link">
-            <i class="fas fa-check-square"></i>
-            <span v-if="!sidebarCollapsed">Opcionais</span>
-          </router-link>
-        </li>
-        <li class="menu-item">
-          <router-link to="/total-geral" class="menu-link">
-            <i class="fas fa-calculator"></i>
-            <span v-if="!sidebarCollapsed">Total Geral</span>
-          </router-link>
-        </li>
+
         <li class="menu-item">
           <router-link to="/condicoes-gerais" class="menu-link">
             <i class="fas fa-file-text"></i>
