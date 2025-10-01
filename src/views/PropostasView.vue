@@ -1104,7 +1104,7 @@
                 </div>
               </div>
 
-              <div v-if="!selectedSupplierId" class="supplier-help">
+              <div v-if="!selectedSupplier" class="supplier-help">
                 <i class="fas fa-info-circle"></i>
                 <p>Selecione um fornecedor para finalizar a proposta. Esta será a última etapa do processo.</p>
               </div>
@@ -1127,7 +1127,7 @@
 <script>
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import { useDatabaseStore } from '@/stores/database'
 import TempProposalService from '@/services/TempProposalService'
@@ -1136,14 +1136,11 @@ import SupplyTypesService from '@/services/SupplyTypesService'
 import { usePDFGenerator } from '@/composables/usePDFGenerator'
 import ProposalsService from '@/services/ProposalsService'
 import TemplatesService from '@/services/TemplatesService'
-import HeaderProposal from '@/components/HeaderProposal.vue'
-import PDFButton from '@/components/PDFButton.vue'
+
 
 export default {
   name: 'PropostasView',
-  components: {
-    HeaderProposal
-  },
+
   setup() {
     const proposals = ref([])
     const filteredProposals = ref([])
@@ -1151,7 +1148,6 @@ export default {
     const loading = ref(false)
     const saving = ref(false)
 
-    const router = useRouter()
     const route = useRoute()
     const database = useDatabaseStore()
     const { generateAndDownloadPDF, isGenerating, generationError, clearError } = usePDFGenerator()
@@ -1211,7 +1207,6 @@ export default {
 
     // Dados para Fornecedor
     const suppliers = ref([])
-    const selectedSupplierId = ref('')
     
     // Form data
     const form = ref({
@@ -1243,146 +1238,9 @@ export default {
       exibir_precos: true // NEW
     })
 
-// --- AUTO-SAVE / DRAFT BACKUP (ÚNICO) --- //
-const lastSavedAt = ref(null);
-
-// chave de rascunho por proposta (id) ou "new"
-const backupKey = computed(() =>
-  currentProposal.value?.id
-    ? `proposal:draft:${currentProposal.value.id}`
-    : 'proposal:draft:new'
-);
-
-// ===== NOVO: metadados e helpers =====
-const DRAFT_SCHEMA = 'proposal-draft@2';
-const toPlain = v => JSON.parse(JSON.stringify(v));
 
 // impede salvar enquanto estamos carregando/mesclando dados
 let initializing = false;
-
-// debounce simples
-const debounce = (fn, wait = 600) => {
-  let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
-};
-
-// ===== NOVO: assign sem sobrescrever com undefined
-function deepAssign(target, src) {
-  if (!src || typeof src !== 'object') return target;
-  for (const [k, v] of Object.entries(src)) {
-    if (v === undefined) continue;
-    if (Array.isArray(v))      target[k] = v.slice();
-    else if (v && typeof v === 'object') target[k] = deepAssign(target[k] ?? {}, v);
-    else                       target[k] = v;
-  }
-  return target;
-}
-
-const buildSnapshot = () => ({
-  __schema: DRAFT_SCHEMA,
-  __proposal_id: currentProposal.value?.id ?? null,
-  __ts: Date.now(),               // timestamp local do snapshot
-  form: toPlain(form.value),      // inclui status/exibir_precos/itens etc.
-  incluir_opcionais: !!incluirOpcionais.value,
-  total_observations: totalObservations.value,
-  politicas: toPlain(politicas.value || []),
-  condicoesGerais: condicoesGerais.value ?? null
-});
-
-function saveLocalBackup() {
-  try {
-    const snap = buildSnapshot();
-    localStorage.setItem(backupKey.value, JSON.stringify(snap));
-    lastSavedAt.value = new Date();
-    console.log('[backup] salvo', backupKey.value, snap);
-  } catch (e) {
-    console.warn('[backup] falhou ao salvar', e);
-  }
-}
-
-// ===== ALTERADO: não salva durante "initializing"
-const saveLocalBackupDebounced = debounce(() => {
-  if (!initializing) saveLocalBackup();
-}, 600);
-
-// ===== NOVO: aplicar snapshot com merge seguro
-function applySnapshotSafe(snap) {
-  if (!snap) return;
-  if (snap.form) deepAssign(form.value, snap.form);
-  if ('incluir_opcionais'   in snap) incluirOpcionais.value   = !!snap.incluir_opcionais;
-  if ('total_observations'  in snap) totalObservations.value  = snap.total_observations;
-  if ('politicas'           in snap) politicas.value          = Array.isArray(snap.politicas) ? snap.politicas : [];
-  if ('condicoesGerais'     in snap) condicoesGerais.value    = snap.condicoesGerais ?? null;
-  recalculateTotals();
-}
-function isSnapshotUseful(snap) {
-  if (!snap || !snap.form) return false;
-  const f = snap.form || {};
-  const hasTitle  = !!(f.title && String(f.title).trim());
-  const hasItems  = Array.isArray(f.items) && f.items.length > 0;
-  const hasIns    = Array.isArray(f.insumos) && f.insumos.length > 0;
-  const hasOpt    = Array.isArray(f.opcionais) && f.opcionais.length > 0;
-  const hasDates  = !!(f.start_date || f.end_date);
-  const hasTotals = (Number(f.total_amount) > 0) || (Number(f.total_geral) > 0);
-  return hasTitle || hasItems || hasIns || hasOpt || hasDates || hasTotals;
-}
-
-// ===== ALTERADO: agora checa schema, id e "mais novo que o banco"
-function tryRestoreFromBackup(remoteUpdatedAt) {
-  try {
-    const raw = localStorage.getItem(backupKey.value);
-    if (!raw) { console.log('[backup] nenhum snapshot para', backupKey.value); return false; }
-
-    const snap = JSON.parse(raw);
-    if (snap.__schema !== DRAFT_SCHEMA) return false;
-    if (currentProposal.value?.id && snap.__proposal_id !== currentProposal.value.id) return false;
-
-    const remoteTs = remoteUpdatedAt ? new Date(remoteUpdatedAt).getTime() : 0;
-    const localTs  = snap.__ts || 0;
-    if (remoteTs && localTs && localTs <= remoteTs) {
-      // banco já é mais novo => não restaura
-      return false;
-    }
-    if (!isSnapshotUseful(snap)) {
-      console.log('[backup] snapshot vazio/irrelevante — ignorado');
-      return false;
-    } 
-
-    applySnapshotSafe(snap);
-    console.log('[backup] restaurado de', backupKey.value, snap);
-    return true;
-  } catch (e) {
-    console.warn('[backup] falhou ao restaurar', e);
-    return false;
-  }
-}
-
-function clearLocalBackup() {
-  try {
-    localStorage.removeItem(backupKey.value);
-    console.log('[backup] limpo', backupKey.value);
-  } catch {}
-}
-
-// salvar ao sair do componente
-onBeforeUnmount(() => { try { saveLocalBackup(); } catch {} });
-
-// Salva automaticamente quando QUALQUER campo do form mudar
-watch(form, saveLocalBackupDebounced, { deep: true });
-
-// E quando variáveis fora do form mudam
-watch([incluirOpcionais, totalObservations, politicas, condicoesGerais], saveLocalBackupDebounced, { deep: true });
-
-// salvar quando listas mudarem
-watch([() => form.value.items, () => form.value.insumos, () => form.value.opcionais], saveLocalBackupDebounced, { deep: true });
-
-// salvar quando status mudar
-watch(() => form.value.status,            saveLocalBackupDebounced);
-watch(() => form.value.status_detalhado,  saveLocalBackupDebounced);
-
-// garante salvar no F5/fechar aba
-const onBeforeUnload = () => { try { saveLocalBackup(); } catch {} };
-onMounted(() => window.addEventListener('beforeunload', onBeforeUnload));
-onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload));
 
     // Computed para totais
     const subtotal = computed(() => {
@@ -1638,10 +1496,6 @@ const openCreateModal = async () => {
     loadSuppliers(),
   ]);
 
-  // tenta recuperar rascunho "new" (se existir)
-  const restored = tryRestoreFromBackup(null);   // <<< ALTERADO
-  console.log('[backup] openCreateModal -> restored?', restored, 'key=', backupKey.value);
-
   initializing = false;            // <<< NOVO
   recalculateTotals();
 };
@@ -1774,10 +1628,6 @@ const openEditModal = async (proposal) => {
   activeTab.value = 'basic';
   showModal.value = true;
 
-  // <<< NOVO: restaura somente se local for mais novo que o do banco
-  const restored = tryRestoreFromBackup(record.updated_at);
-  console.log('[backup] openEditModal -> restored?', restored, 'key=', backupKey.value);
-
   initializing = false;                // <<< NOVO
 };
 
@@ -1790,12 +1640,6 @@ const closeModal = () => {
   resetForm();
 };
 
-
-
-    const cancelAndDiscard = () => {
-      showModal.value = false
-      resetForm()
-    }
 
 // se false, clicar fora NÃO fecha; se true, fecha salvando rascunho
 const allowOverlayClose = ref(false)
@@ -1986,35 +1830,6 @@ const buildPartialUpdate = async () => {
   return patch;
 };
 
-    // Persiste no storage temporário o “basicInfo” para reidratação
-    const persistBasicInfo = (proposalLike) => {
-      try {
-        TempProposalService.updateSection('basicInfo', {
-          user_id: proposalLike.user_id,
-          company_id: proposalLike.company_id,
-          client_id: proposalLike.client_id,
-          proposal_number: proposalLike.proposal_number,
-          title: proposalLike.title,
-          description: proposalLike.description,
-          status: proposalLike.status,
-          status_detalhado: proposalLike.status_detalhado,
-          event_type: proposalLike.event_type,
-          participants_count: proposalLike.participants_count,
-          start_date: proposalLike.start_date,
-          end_date: proposalLike.end_date,
-          start_time: proposalLike.start_time,
-          end_time: proposalLike.end_time,
-          location: proposalLike.location,
-          contractor_name: proposalLike.contractor_name,
-          requester_name: proposalLike.requester_name,
-          phone: proposalLike.phone,
-          email: proposalLike.email
-        })
-      } catch (e) {
-        console.warn('Falha ao persistir basicInfo temporário:', e)
-      }
-    }
-
 // começa no 1212 (ou altere como quiser)
 const PROPOSAL_BASE_NUMBER = 1212;
 
@@ -2061,11 +1876,7 @@ const getNextProposalNumber = async () => {
 
           currentProposal.value = data
           proposalId = data.id
-
-          // Persistir basicInfo no storage temporário
-          persistBasicInfo(data)
           
-          clearLocalBackup()
           lastSavedAt.value = new Date()
 
         } else {
@@ -2086,10 +1897,7 @@ const getNextProposalNumber = async () => {
         
           isEditing.value = true
 
-          // Persistir basicInfo do rascunho recém-criado
-          persistBasicInfo(data)
           
-          clearLocalBackup()
           lastSavedAt.value = new Date()
         }
 
@@ -2123,10 +1931,8 @@ const getNextProposalNumber = async () => {
           if (error) throw error
 
           currentProposal.value = data
-          // Atualiza basicInfo no storage temporário
-          persistBasicInfo(data)
+
           
-          clearLocalBackup()
           lastSavedAt.value = new Date()
         } else {
           // Se ainda não existe, cria como rascunho
@@ -2142,10 +1948,7 @@ const getNextProposalNumber = async () => {
           currentProposal.value = data
           isEditing.value = true
           if (data?.id) database.setCurrentProposalId(data.id)
-
-          persistBasicInfo(data)
           
-          clearLocalBackup()
           lastSavedAt.value = new Date()
         }
 
@@ -2159,10 +1962,6 @@ const getNextProposalNumber = async () => {
       }
     }
 
-    const viewProposal = (proposal) => {
-      // TODO: Implementar visualização de proposta
-      console.log('Visualizar proposta:', proposal)
-    }
 
     const deleteProposal = async (proposalId) => {
       if (!confirm('Tem certeza que deseja excluir esta proposta?')) return
@@ -2196,30 +1995,6 @@ const getNextProposalNumber = async () => {
         canceled: 'lost'
       }
       return map[status] || 'draft'
-    }
-
-    const getStatusClass = (status) => {
-      const normalized = normalizeStatus(status)
-      const statusMap = {
-        draft: 'status-draft',
-        open: 'status-open',
-        negotiation: 'status-negotiation',
-        closed: 'status-closed',
-        lost: 'status-lost'
-      }
-      return statusMap[normalized] || 'status-draft'
-    }
-
-    const getStatusText = (status) => {
-      const normalized = normalizeStatus(status)
-      const statusMap = {
-        draft: 'Rascunho',
-        open: 'Aberto',
-        negotiation: 'Em Negociação',
-        closed: 'Fechado',
-        lost: 'Perdemos'
-      }
-      return statusMap[normalized] || 'Rascunho'
     }
 
     const formatDate = (dateString) => {
@@ -2260,37 +2035,6 @@ const getNextProposalNumber = async () => {
       return `${startFormatted} à ${endFormatted}`
     }
 
-    // Função para duplicar proposta
-    const duplicateProposal = async (proposal) => {
-      if (!confirm('Deseja duplicar esta proposta?')) return
-      
-      try {
-        const newProposal = {
-          ...proposal,
-          id: undefined,
-          proposal_number: undefined,
-          title: `${proposal.title} (Cópia)`,
-          status: 'draft',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-        
-        const { data, error } = await supabase
-          .from('proposals')
-          .insert([newProposal])
-          .select()
-          .single()
-        
-        if (error) throw error
-        
-        alert('Proposta duplicada com sucesso!')
-        await loadProposals()
-        
-      } catch (err) {
-        console.error('Erro ao duplicar proposta:', err)
-        alert('Erro ao duplicar proposta')
-      }
-    }
 
     const updateProposalStatus = async (proposalId, newStatus) => {
       try {
@@ -3169,14 +2913,11 @@ const onQtyChange = (row) => {
       openEditModal,
       closeModal,
       saveAndExit,
-      cancelAndDiscard,
       onOverlayClick,
       toggleClientDropdown,
       selectClient,
       saveProposal,
-      viewProposal,
       deleteProposal,
-      duplicateProposal,
       editProposal,
       copyProposalLink,
       exportToPDF,
@@ -3184,21 +2925,15 @@ const onQtyChange = (row) => {
       generationError,
       updateProposalStatus,
       normalizeStatus,
-      getStatusClass,
-      getStatusText,
       formatDate,
       formatCurrency,
       formatDateRange,
       loadTemplateData,
       editItem,
       removeItem,
-      incrementItemQuantity,
-      decrementItemQuantity,
       openSupplyModal,
       editSupply,
       removeSupply,
-      incrementSupplyQuantity,
-      decrementSupplyQuantity,
       openOptionalModal,
       editOptional,
       removeOptional,
@@ -3300,7 +3035,6 @@ const onQtyChange = (row) => {
       condicoesGerais,
       politicas,
       suppliers,
-      selectedSupplierId,
       selectedSupplier,
       subtotal,
       discountAmount,
@@ -3461,32 +3195,6 @@ const onQtyChange = (row) => {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.proposal-number {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.number-label {
-  font-size: 12px;
-  color: #666;
-  font-weight: 500;
-}
-
-.number-value {
-  font-size: 16px;
-  font-weight: bold;
-  color: #007bff;
-}
 
 .status-dropdown-container {
   position: relative;
@@ -3512,56 +3220,6 @@ const onQtyChange = (row) => {
 .status-dropdown option {
   padding: 4px 8px;
 }
-
-/* Cores para diferentes status */
-.status-dropdown[value="rascunho"] {
-  background-color: #fff3cd;
-  color: #856404;
-  border-color: #ffeaa7;
-}
-
-.status-dropdown[value="negociacao"] {
-  background-color: #d1ecf1;
-  color: #0c5460;
-  border-color: #bee5eb;
-}
-
-.status-dropdown[value="recusado"] {
-  background-color: #f8d7da;
-  color: #721c24;
-  border-color: #f5c6cb;
-}
-
-.status-dropdown[value="aprovado"] {
-  background-color: #d4edda;
-  color: #155724;
-  border-color: #c3e6cb;
-}
-
-.proposal-status.status-draft {
-  background: #ffc107;
-  color: #212529;
-}
-
-.status-sent {
-  background: #17a2b8;
-  color: white;
-}
-
-.status-approved {
-  background: #28a745;
-  color: white;
-}
-
-.status-rejected {
-  background: #dc3545;
-  color: white;
-}
-
-.status-open { background: #17a2b8; color: white; }
-.status-negotiation { background: #f1c40f; color: #212529; }
-.status-closed { background: #28a745; color: white; }
-.status-lost { background: #dc3545; color: white; }
 
 .proposal-info {
   flex: 1;
@@ -3689,33 +3347,6 @@ const onQtyChange = (row) => {
 
 .btn-secondary:hover {
   background: #5a6268;
-}
-
-.btn-info {
-  background: #17a2b8;
-  color: white;
-}
-
-.btn-info:hover {
-  background: #138496;
-}
-
-.btn-success {
-  background: #28a745;
-  color: white;
-}
-
-.btn-success:hover {
-  background: #218838;
-}
-
-.btn-danger {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #c82333;
 }
 
 .empty-state {
@@ -4282,9 +3913,6 @@ const onQtyChange = (row) => {
     font-size: 14px;
   }
 
-  .modal-actions {
-    flex-direction: column;
-  }
 }
 
 @media (max-width: 480px) {
