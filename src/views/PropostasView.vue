@@ -694,8 +694,47 @@
     <h6>{{ item.codigo }}</h6>
     <p>{{ item.descricao }}</p>
     <div class="item-details">
-      <span class="badge badge-info">{{ item.categoria }}</span>
-      <span class="item-price">{{ formatCurrency(item.valor_unitario) }}</span>
+
+<div class="item-details">
+  <span class="badge badge-info">{{ item.categoria }}</span>
+
+  <!-- Campo de preço editável que só afeta esta proposta -->
+  <div class="price-edit">
+    <span class="currency-symbol">R$</span>
+    <input
+      type="number"
+      min="0"
+      step="0.01"
+      class="form-control price-input"
+      v-model.number="item.valor_unitario"
+      @input="recalculateTotals"
+      @blur="recalculateTotals"
+      title="Preço unitário deste item (apenas nesta proposta)"
+    />
+
+    <!-- indicador se foi alterado em relação ao cadastro -->
+    <span
+      v-if="item.preco_base != null && Number(item.preco_base) !== Number(item.valor_unitario)"
+      class="badge badge-warning"
+      title="Preço ajustado nesta proposta"
+    >
+      ajustado
+    </span>
+
+    <!-- (opcional) botão para voltar ao preço base -->
+    <button
+      v-if="item.preco_base != null && Number(item.preco_base) !== Number(item.valor_unitario)"
+      class="inline-icon-btn"
+      @click="item.valor_unitario = Number(item.preco_base); recalculateTotals()"
+      title="Reverter para o preço do cadastro"
+    >
+      <i class="fas fa-undo"></i>
+    </button>
+  </div>
+</div>
+
+
+
     </div>
   </div>
   <div class="item-controls">
@@ -755,8 +794,40 @@
     <h6>{{ insumo.codigo }}</h6>
     <p>{{ insumo.descricao }}</p>
     <div class="item-details">
-      <span class="badge badge-warning">{{ insumo.tipo }}</span>
-      <span class="item-price">{{ formatCurrency(insumo.valor_unitario) }}</span>
+
+
+<div class="item-details">
+  <span class="badge badge-warning">{{ insumo.tipo }}</span>
+
+  <div class="price-edit">
+    <span class="currency-symbol">R$</span>
+    <input
+      type="number"
+      min="0"
+      step="0.01"
+      class="form-control price-input"
+      v-model.number="insumo.valor_unitario"
+      @input="recalculateTotals"
+      @blur="recalculateTotals"
+      title="Preço unitário deste insumo (apenas nesta proposta)"
+    />
+    <span
+      v-if="insumo.preco_base != null && Number(insumo.preco_base) !== Number(insumo.valor_unitario)"
+      class="badge badge-warning"
+    >ajustado</span>
+    <button
+      v-if="insumo.preco_base != null && Number(insumo.preco_base) !== Number(insumo.valor_unitario)"
+      class="inline-icon-btn"
+      @click="insumo.valor_unitario = Number(insumo.preco_base); recalculateTotals()"
+      title="Reverter para o preço do cadastro"
+    >
+      <i class="fas fa-undo"></i>
+    </button>
+  </div>
+</div>
+
+
+
     </div>
   </div>
   <div class="item-controls">
@@ -816,8 +887,40 @@
     <h6>{{ opcional.codigo }}</h6>
     <p>{{ opcional.descricao }}</p>
     <div class="item-details">
-      <span class="badge badge-success">Opcional</span>
-      <span class="item-price">{{ formatCurrency(opcional.valor_unitario) }}</span>
+
+
+<div class="item-details">
+  <span class="badge badge-success">Opcional</span>
+
+  <div class="price-edit"> 
+    <span class="currency-symbol">R$</span>
+    <input
+      type="number"
+      min="0"
+      step="0.01"
+      class="form-control price-input"
+      v-model.number="opcional.valor_unitario"
+      @input="recalculateTotals"
+      @blur="recalculateTotals"
+      title="Preço unitário deste opcional (apenas nesta proposta)"
+    />
+    <span
+      v-if="opcional.preco_base != null && Number(opcional.preco_base) !== Number(opcional.valor_unitario)"
+      class="badge badge-warning"
+    >ajustado</span>
+    <button
+      v-if="opcional.preco_base != null && Number(opcional.preco_base) !== Number(opcional.valor_unitario)"
+      class="inline-icon-btn"
+      @click="opcional.valor_unitario = Number(opcional.preco_base); recalculateTotals()"
+      title="Reverter para o preço do cadastro"
+    >
+      <i class="fas fa-undo"></i>
+    </button>
+  </div>
+</div>
+
+
+
     </div>
   </div>
   <div class="item-controls">
@@ -1186,7 +1289,7 @@ export default {
     ])
     
     // Dados para Total Geral
-    const incluirOpcionais = ref(true)
+    const incluirOpcionais = ref(false)
     const discount = ref(0)
     const taxRate = ref(0)
     const totalObservations = ref('')
@@ -1237,7 +1340,7 @@ export default {
       items: [],
       insumos: [],
       opcionais: [],
-      exibir_precos: true // NEW
+      exibir_precos: false // NEW
     })
 
 
@@ -1292,7 +1395,7 @@ let initializing = false;
         items: [],
         insumos: [],
         opcionais: [],
-        exibir_precos: true // NEW
+        exibir_precos: false // NEW
       }
       activeTab.value = 'basic'
     }
@@ -1467,7 +1570,20 @@ const onSupplierChange = () => {
   if (!ok) form.value.supplier_id = null;
 };
 
+const normalizeRows = (rows) => {
+  (rows || []).forEach(r => {
+    r.quantity = Number(r.quantity) || 1
+    // se não veio preco_base (propostas antigas), usa o valor atual
+    if (r.preco_base == null) r.preco_base = Number(r.valor_unitario ?? r.price ?? 0)
+    r.valor_unitario = Number(r.valor_unitario ?? 0)
+  })
+}
 
+normalizeRows(form.value.items)
+normalizeRows(form.value.insumos)
+normalizeRows(form.value.opcionais)
+
+recalculateTotals()
 
     const formatCNPJ = (cnpj) => {
       if (!cnpj) return ''
@@ -1535,8 +1651,8 @@ const openEditModal = async (proposal) => {
   form.value.event_type         = record.event_type || '';
   form.value.participants_count = record.participants_count || null;
   form.value.location           = record.location || '';
-  form.value.start_date         = record.start_date || '';
-  form.value.end_date           = record.end_date || '';
+  form.value.start_date         = normalizeDateInput(record.start_date || '');
+  form.value.end_date           = normalizeDateInput(record.end_date || '');
   form.value.start_time         = record.start_time || '';
   form.value.end_time           = record.end_time || '';
   form.value.contractor_name    = record.contractor_name || '';
@@ -1626,7 +1742,7 @@ const openEditModal = async (proposal) => {
     record.incluir_v_un_itens ??
     record.incluir_v_un_insumos ??
     record.incluir_v_un_opcionais ??
-    true
+    false
   );
 
   activeTab.value = 'basic';
@@ -1703,8 +1819,8 @@ const selectClient = (client) => {
             event_type: template.event_type || '',
             participants_count: template.participants_count || null,
             location: template.location || '',
-            start_date: template.start_date || '',
-            end_date: template.end_date || '',
+            start_date: normalizeDateInput(template.start_date || ''),
+            end_date: normalizeDateInput(template.end_date || ''),
             start_time: template.start_time || '',
             end_time: template.end_time || '',
             contractor_name: template.contractor_name || '',
@@ -1715,6 +1831,7 @@ const selectClient = (client) => {
             status_detalhado: template.status_detalhado || '',
             total_amount: template.total_amount || 0,
             total_geral: template.total_geral || 0,
+            exibir_precos: template.exibir_precos ?? false,
             items: template.items || [],
             insumos: template.insumos || [],
             opcionais: template.opcionais || []
@@ -2007,10 +2124,6 @@ const getNextProposalNumber = async () => {
       return map[status] || 'draft'
     }
 
-    const formatDate = (dateString) => {
-      if (!dateString) return ''
-      return new Date(dateString).toLocaleDateString('pt-BR')
-    }
 
     const formatCurrency = (value) => {
       if (!value && value !== 0) return ''
@@ -2020,30 +2133,31 @@ const getNextProposalNumber = async () => {
       }).format(value)
     }
 
-    const formatDateRange = (startDate, endDate) => {
-      if (!startDate || !endDate) return ''
-      
-      const start = new Date(startDate)
-      const end = new Date(endDate)
-      
-      const startFormatted = start.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      })
-      
-      const endFormatted = end.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      })
-      
-      if (startFormatted === endFormatted) {
-        return startFormatted
-      }
-      
-      return `${startFormatted} à ${endFormatted}`
-    }
+    // helpers internos (usados só aqui)
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const isDateOnly = (s) => typeof s === 'string' && DATE_ONLY_RE.test(s);
+const toBR = (s) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
+
+// ⚠️ mantém o mesmo nome que você já usa nos cards e em todo o app
+const formatDate = (value) => {
+  if (!value) return '';
+  if (isDateOnly(value)) return toBR(value);            // 'YYYY-MM-DD' → não cria Date()
+  const d = new Date(value);                             // timestamps/ISO → pode usar Date
+  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString('pt-BR');
+};
+
+const formatDateRange = (start, end) => {
+  if (!start || !end) return '';
+  if (isDateOnly(start) && isDateOnly(end)) {
+    const s = toBR(start), e = toBR(end);
+    return s === e ? s : `${s} à ${e}`;
+  }
+  const s = formatDate(start), e = formatDate(end);
+  return s === e ? s : `${s} à ${e}`;
+};
+
+const normalizeDateInput = (v) => (!v ? '' : String(v).slice(0, 10)); // pega 'YYYY-MM-DD' de ISO ou já puro
+
 
 
     const updateProposalStatus = async (proposalId, newStatus) => {
@@ -2119,8 +2233,8 @@ const getNextProposalNumber = async () => {
           event_type: basicInfo.event_type || '',
           participants_count: basicInfo.participants_count || null,
           location: basicInfo.location || '',
-          start_date: basicInfo.start_date || '',
-          end_date: basicInfo.end_date || '',
+          start_date: normalizeDateInput(basicInfo.start_date || ''),
+          end_date: normalizeDateInput(basicInfo.end_date || ''),
           start_time: basicInfo.start_time || '',
           end_time: basicInfo.end_time || '',
           contractor_name: basicInfo.contractor_name || '',
@@ -2128,6 +2242,7 @@ const getNextProposalNumber = async () => {
           phone: basicInfo.phone || '',
           email: basicInfo.email || '',
           status: 'draft',
+          exibir_precos: false,
           status_detalhado: basicInfo.status_detalhado || '',
           total_amount: basicInfo.total_amount || 0,
           total_geral: basicInfo.total_geral || 0,
@@ -2360,14 +2475,17 @@ const getNextProposalNumber = async () => {
       // Adicionar todos os itens selecionados à proposta
       selectedItems.value.forEach(item => {
         const newItem = {
-          codigo: item.name,
-          descricao: item.description,
-          categoria: item.type,
-          unidade: item.unit || '',
-          valor_unitario: item.price || 0,
-          source_id: item.id,
-          source_table: item.type === 'produto' ? 'products' : 'services' // Corrigido: era 'produtos' e 'servicos'
-        }
+  codigo: item.name,
+  descricao: item.description,
+  categoria: item.type,          // 'produto' | 'servico'
+  unidade: item.unit || '',
+  valor_unitario: item.price || 0,  // <- o que a proposta usa
+  preco_base: item.price || 0,      // <- referência do cadastro
+  quantity: 1,                      // <- padrão
+  source_id: item.id,
+  source_table: item.type === 'produto' ? 'products' : 'services'
+}
+
         
         form.value.items.push(newItem)
       })
@@ -2516,33 +2634,42 @@ const getNextProposalNumber = async () => {
       selectedSupplies.value = []
     }
 
-    const saveSelectedSupplies = () => {
-      if (selectedSupplies.value.length === 0) {
-        alert('Selecione pelo menos um insumo')
-        return
-      }
+const saveSelectedSupplies = () => {
+  if (selectedSupplies.value.length === 0) {
+    alert('Selecione pelo menos um insumo')
+    return
+  }
 
-      // Adicionar todos os insumos selecionados à proposta
-      selectedSupplies.value.forEach(supply => {
-        const newSupply = {
-          codigo: supply.name || '',
-          descricao: supply.description || '',
-          tipo: supply.type || '',
-          unidade: supply.unit || '',
-          valor_unitario: supply.price || 0,
-          quantity: 1, // Quantidade padrão
-          source_id: supply.id,
-          source_table: 'supplies'
-        }
-        
-        form.value.insumos.push(newSupply)
-      })
-
-      // Recalcular totais
-      recalculateTotals()
-      
-      closeSupplyModal()
+  selectedSupplies.value.forEach((supply) => {
+    // garante número (aceita string "1.111,00", "1111.00" etc.)
+    let priceNum = supply?.price ?? 0
+    if (typeof priceNum === 'string') {
+      priceNum = Number(priceNum.replace(/\./g, '').replace(',', '.'))
     }
+    priceNum = Number(priceNum)
+    if (!Number.isFinite(priceNum)) priceNum = 0
+
+    const newSupply = {
+      codigo: supply.name || '',
+      descricao: supply.description || '',
+      tipo: supply.type || '',
+      unidade: supply.unit || '',
+      // preço usado na proposta (editável)
+      valor_unitario: priceNum,
+      // preço original do cadastro (só referência)
+      preco_base: priceNum,
+      quantity: 1,
+      source_id: supply.id,
+      source_table: 'supplies',
+    }
+
+    form.value.insumos.push(newSupply)
+  })
+
+  recalculateTotals()
+  closeSupplyModal()
+}
+
 
     const closeSupplyModal = () => {
       showSupplyModal.value = false
@@ -2821,28 +2948,45 @@ const getNextProposalNumber = async () => {
       editingOptionalIndex.value = -1
     }
 
-    const saveSelectedOptionals = () => {
-      if (selectedOptionals.value.length === 0) return
+const saveSelectedOptionals = () => {
+  if (selectedOptionals.value.length === 0) return
 
-      // Adicionar opcionais selecionados ao formulário
-      selectedOptionals.value.forEach(optional => {
-        const newOptional = {
-          codigo: optional.codigo,
-          descricao: optional.descricao,
-          categoria: optional.categoria,
-          unidade: optional.unidade,
-          valor_unitario: optional.valor_unitario,
-          quantity: optional.quantity || 1
-        }
-        
-        form.value.opcionais.push(newOptional)
-      })
-
-      // Recalcular totais
-      recalculateTotals()
-      
-      closeOptionalModal()
+  selectedOptionals.value.forEach((optional) => {
+    // preço base (garante número mesmo se vier string "1.111,00")
+    let priceNum = optional?.valor_unitario ?? optional?.price ?? 0
+    if (typeof priceNum === 'string') {
+      priceNum = Number(priceNum.replace(/\./g, '').replace(',', '.'))
     }
+    priceNum = Number(priceNum)
+    if (!Number.isFinite(priceNum)) priceNum = 0
+
+    const newOptional = {
+      // fallback para manter compat mesmo se não vierem os alias
+      codigo: optional.codigo || optional.name || '',
+      descricao: optional.descricao || optional.description || '',
+      categoria: optional.categoria || 'opcional',         // apenas informativo
+      unidade: optional.unidade || optional.unit || '',
+
+      // preço que valerá no PDF (pode ser editável depois)
+      valor_unitario: optional._custom_price ?? priceNum,
+
+      // referência do cadastro original (não usado no total)
+      preco_base: priceNum,
+
+      quantity: Number(optional.quantity) || 1,
+
+      // rastreabilidade da origem
+      source_id: optional.id,
+      source_table: optional.type === 'produto' ? 'products' : 'services',
+    }
+
+    form.value.opcionais.push(newOptional)
+  })
+
+  recalculateTotals()
+  closeOptionalModal()
+}
+
 
     const editOptional = (index) => {
       // TODO: Implementar edição de opcional
@@ -5314,5 +5458,17 @@ const onQtyChange = (row) => {
   width: 48px;
   text-align: center;
 }
+.price-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.price-input {
+  width: 120px;
+  text-align: right;
+  padding: 6px 8px;
+}
+
 
 </style>
