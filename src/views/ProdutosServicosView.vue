@@ -195,7 +195,7 @@
     </div>
 
     <!-- Modal Novo Produto -->
-    <div v-if="showNewProductModal" class="modal-overlay" @click="closeNewProductModal">
+    <div v-if="showNewProductModal" class="modal-overlay" @click="onOverlayClick">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>Novo Produto</h2>
@@ -322,7 +322,7 @@
     </div>
 
     <!-- Modal Editar Produto -->
-    <div v-if="showEditProductModal" class="modal-overlay" @click="closeEditProductModal">
+    <div v-if="showEditProductModal" class="modal-overlay" @click="onOverlayClick">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>Editar Produto</h2>
@@ -448,7 +448,7 @@
     </div>
 
     <!-- Modal Novo Serviço -->
-    <div v-if="showNewServiceModal" class="modal-overlay" @click="closeNewServiceModal">
+    <div v-if="showNewServiceModal" class="modal-overlay" @click="onOverlayClick">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>Novo Serviço</h2>
@@ -586,7 +586,7 @@
     </div>
 
     <!-- Modal Editar Serviço -->
-    <div v-if="showEditServiceModal" class="modal-overlay" @click="closeEditServiceModal">
+    <div v-if="showEditServiceModal" class="modal-overlay" @click="onOverlayClick">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>Editar Serviço</h2>
@@ -723,7 +723,7 @@
     </div>
 
     <!-- Modal Gerenciar Categorias -->
-    <div v-if="showCategoriesModal" class="modal-overlay" @click="closeCategoriesModal">
+    <div v-if="showCategoriesModal" class="modal-overlay" @click="onOverlayClick">
       <div class="modal-content categories-modal" @click.stop>
         <div class="modal-header">
           <h2>Gerenciar Categorias</h2>
@@ -900,6 +900,20 @@ export default {
     const editingProduct = ref(null)
     const editingService = ref(null)
 
+
+// se false, clicar fora NÃO fecha; se true, fecha
+const allowOverlayClose = ref(false)
+
+const onOverlayClick = () => {
+  if (!allowOverlayClose.value) return
+  if (showNewProductModal.value) return closeNewProductModal()
+  if (showEditProductModal.value) return closeEditProductModal()
+  if (showNewServiceModal.value) return closeNewServiceModal()
+  if (showEditServiceModal.value) return closeEditServiceModal()
+  if (showCategoriesModal.value) return closeCategoriesModal()
+}
+
+
     const loadProducts = async () => {
       try {
         const { data, error } = await supabase
@@ -991,11 +1005,22 @@ export default {
       productErrors.value = {}
     }
 
-    const openEditProductModal = (product) => {
-      productForm.value = { ...product }
-      productErrors.value = {}
-      showEditProductModal.value = true
-    }
+const openEditProductModal = (product) => {
+  productForm.value = {
+    id: product.id ?? null,
+    name: product.name ?? '',
+    category: product.category ?? '',
+    description: product.description ?? '',
+    unit_price: product.price ?? null,     // 👈 mapeia do banco
+    unit: product.unit ?? '',
+    min_price: product.min_price ?? null,
+    max_price: product.max_price ?? null,
+    observations: product.observations ?? ''
+  }
+  productErrors.value = {}
+  showEditProductModal.value = true
+}
+
 
     const closeEditProductModal = () => {
       showEditProductModal.value = false
@@ -1030,11 +1055,23 @@ export default {
       serviceErrors.value = {}
     }
 
-    const openEditServiceModal = (service) => {
-      serviceForm.value = { ...service }
-      serviceErrors.value = {}
-      showEditServiceModal.value = true
-    }
+const openEditServiceModal = (service) => {
+  serviceForm.value = {
+    id: service.id ?? null,
+    name: service.name ?? '',
+    category: service.category ?? '',
+    description: service.description ?? '',
+    unit_price: service.price ?? null,     // 👈 mapeia do banco
+    unit: service.unit ?? '',
+    min_price: service.min_price ?? null,
+    max_price: service.max_price ?? null,
+    duration_hours: service.duration_hours ?? null,
+    observations: service.observations ?? ''
+  }
+  serviceErrors.value = {}
+  showEditServiceModal.value = true
+}
+
 
     const closeEditServiceModal = () => {
       showEditServiceModal.value = false
@@ -1086,15 +1123,16 @@ export default {
       
       saving.value = true
       try {
-        const productData = {
-          name: productForm.value.name.trim(),
-          category: productForm.value.category?.trim() || null,
-          description: productForm.value.description?.trim() || null,
-          price: productForm.value.unit_price || null,
-          unit: productForm.value.unit?.trim() || null,
-          min_price: productForm.value.min_price || null,
-          max_price: productForm.value.max_price || null
-        }
+const productData = {
+  name: productForm.value.name.trim(),
+  category: productForm.value.category?.trim() || null,
+  description: productForm.value.description?.trim() || null,
+  price: productForm.value.unit_price || null,
+  unit: productForm.value.unit?.trim() || null,
+  min_price: productForm.value.min_price || null,
+  max_price: productForm.value.max_price || null,
+  observations: productForm.value.observations?.trim() || null   // 👈
+}
 
         const { error } = await supabase
           .from('products')
@@ -1170,16 +1208,18 @@ export default {
       
       saving.value = true
       try {
-        const serviceData = {
-          name: serviceForm.value.name.trim(),
-          category: serviceForm.value.category?.trim() || null,
-          description: serviceForm.value.description?.trim() || null,
-          price: serviceForm.value.unit_price || null,
-          unit: serviceForm.value.unit?.trim() || null,
-          duration_hours: serviceForm.value.duration_hours || null,
-          min_price: serviceForm.value.min_price || null,
-          max_price: serviceForm.value.max_price || null
-        }
+// saveService -> inclua observations
+const serviceData = {
+  name: serviceForm.value.name.trim(),
+  category: serviceForm.value.category?.trim() || null,
+  description: serviceForm.value.description?.trim() || null,
+  price: serviceForm.value.unit_price || null,
+  unit: serviceForm.value.unit?.trim() || null,
+  duration_hours: serviceForm.value.duration_hours || null,
+  min_price: serviceForm.value.min_price || null,
+  max_price: serviceForm.value.max_price || null,
+  observations: serviceForm.value.observations?.trim() || null    // 👈
+}
 
         const { error } = await supabase
           .from('services')
@@ -1389,6 +1429,7 @@ export default {
       serviceForm,
       productErrors,
       serviceErrors,
+      onOverlayClick,
       filterProducts,
       filterServices,
       openNewProductModal,

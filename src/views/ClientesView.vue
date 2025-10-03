@@ -55,7 +55,7 @@
     </div>
 
     <!-- Modal Criar/Editar Cliente -->
-    <div v-if="showCreateModal || showEditModal" class="modal-overlay" @click="closeModals">
+    <div v-if="showCreateModal || showEditModal" class="modal-overlay" @click="onOverlayClick">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>{{ showEditModal ? 'Editar Cliente' : 'Novo Cliente' }}</h2>
@@ -186,7 +186,7 @@
     </div>
 
     <!-- Modal Visualizar Cliente -->
-    <div v-if="showViewModal" class="modal-overlay" @click="closeModals">
+    <div v-if="showViewModal" class="modal-overlay" @click="onOverlayClick">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>Detalhes do Cliente</h2>
@@ -286,6 +286,16 @@ export default {
     const viewingClient = ref(null)
     const errors = ref({})
 
+    // não fecha ao clicar fora (padrão: false)
+const allowOverlayClose = ref(false)
+
+const onOverlayClick = () => {
+  if (!allowOverlayClose.value) return
+  // se algum dia quiser permitir fechar clicando fora, é só setar true
+  closeModals()
+}
+
+    
     const resetCurrentClient = () => {
       currentClient.value = {
         company_name: '',
@@ -584,6 +594,7 @@ export default {
       currentClient,
       viewingClient,
       errors,
+      onOverlayClick,
       filterClients,
       openCreateModal,
       editClient,

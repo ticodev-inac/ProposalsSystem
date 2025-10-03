@@ -170,7 +170,7 @@
     </div>
 
     <!-- Modal para adicionar/editar Item -->
-    <div v-if="showItemModal" class="modal-overlay item-modal-overlay" @click="closeItemModal">
+    <div v-if="showItemModal" class="modal-overlay item-modal-overlay" @click.self="onOverlayClick">
       <div class="modal-content large-modal" @click.stop>
         <div class="modal-header">
           <h5>{{ editingItemIndex !== null ? 'Editar Item' : 'Selecionar Itens' }}</h5>
@@ -283,7 +283,7 @@
     </div>
 
     <!-- Modal para adicionar/editar Insumo -->
-    <div v-if="showSupplyModal" class="modal-overlay supply-modal-overlay" @click="closeSupplyModal">
+    <div v-if="showSupplyModal" class="modal-overlay supply-modal-overlay" @click.self="onOverlayClick">
       <div class="modal-content large-modal" @click.stop>
         <div class="modal-header">
           <h5>{{ editingSupplyIndex !== null ? 'Editar Insumo' : 'Selecionar Insumos' }}</h5>
@@ -390,7 +390,7 @@
     </div>
 
     <!-- Modal para adicionar/editar Opcional -->
-    <div v-if="showOptionalModal" class="modal-overlay optional-modal-overlay" @click="closeOptionalModal">
+    <div v-if="showOptionalModal" class="modal-overlay optional-modal-overlay" @click.self="onOverlayClick">
       <div class="modal-content large-modal expanded-modal" @click.stop>
         <div class="modal-header">
           <h5>{{ editingOptionalIndex !== null ? 'Editar Opcional' : 'Selecionar Opcionais' }}</h5>
@@ -1478,6 +1478,7 @@ const onSupplierChange = () => {
     }
 
 const openCreateModal = async () => {
+  allowOverlayClose.value = false
   isEditing.value = false;
   initializing = true;              // <<< NOVO
   resetForm();
@@ -1503,6 +1504,7 @@ const openCreateModal = async () => {
 
 
 const openEditModal = async (proposal) => {
+  allowOverlayClose.value = false
    initializing = true;            // <<< LIGA modo inicialização
    resetForm();
    resetSupplierState();
@@ -1633,6 +1635,7 @@ const openEditModal = async (proposal) => {
 
 const closeModal = () => {
   showModal.value = false;
+  allowOverlayClose.value = false
   showClientDropdown.value = false;
   clientSearch.value = '';
   activeTab.value = 'basic';
@@ -1641,14 +1644,19 @@ const closeModal = () => {
 };
 
 
-// se false, clicar fora NÃO fecha; se true, fecha salvando rascunho
+// se false, clicar fora NÃO fecha; se true, fecha
 const allowOverlayClose = ref(false)
 
 const onOverlayClick = () => {
   if (!allowOverlayClose.value) return
-  // fecha como "salvar rascunho"
-  try { saveLocalBackup() } catch {}
-  showModal.value = false
+
+  // prioridade: modais de seleção (ficam por cima do modal principal)
+  if (showItemModal.value)        return closeItemModal()
+  if (showSupplyModal.value)      return closeSupplyModal()
+  if (showOptionalModal.value)    return closeOptionalModal()
+
+  // por último, o modal principal da Proposta
+  if (showModal.value)            return closeModal()
 }
 
 
@@ -2367,6 +2375,7 @@ const getNextProposalNumber = async () => {
 
     const closeItemModal = () => {
       showItemModal.value = false
+      allowOverlayClose.value = false
       editingItemIndex.value = null
       itemSearchTerm.value = ''
       selectedItemType.value = ''
@@ -2378,6 +2387,7 @@ const getNextProposalNumber = async () => {
 
     const openItemModal = async () => {
       await loadAvailableItems()
+      allowOverlayClose.value = false
       showItemModal.value = true
     }
 
@@ -2596,6 +2606,7 @@ const getNextProposalNumber = async () => {
       try {
         await loadAvailableSupplies()
         await loadSupplyTypes()
+        allowOverlayClose.value = false
         showSupplyModal.value = true
       } catch (error) {
         console.error('Erro ao abrir modal de insumos:', error)
@@ -2792,11 +2803,13 @@ const getNextProposalNumber = async () => {
       selectedOptionals.value = []
       editingOptionalIndex.value = -1
       await loadAvailableOptionals()
+      allowOverlayClose.value = false
       showOptionalModal.value = true
     }
 
     const closeOptionalModal = () => {
       showOptionalModal.value = false
+      allowOverlayClose.value = false
       selectedOptionals.value = []
       optionalSearchTerm.value = ''
       selectedOptionalType.value = ''
