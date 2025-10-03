@@ -1228,9 +1228,9 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import { useDatabaseStore } from '@/stores/database'
 import TempProposalService from '@/services/TempProposalService'
@@ -1252,6 +1252,8 @@ export default {
     const saving = ref(false)
 
     const route = useRoute()
+    const router = useRouter()
+    
     const database = useDatabaseStore()
     const { generateAndDownloadPDF, isGenerating, generationError, clearError } = usePDFGenerator()
     
@@ -1759,6 +1761,21 @@ const closeModal = () => {
   activeTab.value = 'basic';
   resetSupplierState(); // limpa supplier
   resetForm();
+    // ⬇ ENCERRA fluxo do modelo (limpa estados/URL)
+  try { database.clearTemplateData?.() } catch {}
+  try { TempProposalService.clearTempData?.() } catch {}
+  try {
+    // fallback: zera flags usadas no TempProposalService
+    TempProposalService.updateSection?.('templateInfo', {
+      isUsingTemplate: false, templateId: null, templateName: null
+    })
+  } catch {}
+
+  // remove ?useTemplate= da URL sem criar histórico
+  if (route.query?.useTemplate) {
+    const { useTemplate, ...rest } = route.query
+    router.replace({ path: route.path, query: rest })
+  }
 };
 
 
