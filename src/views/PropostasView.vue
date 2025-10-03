@@ -1163,6 +1163,8 @@ export default {
     const showModal = ref(false)
     const isEditing = ref(false)
     const currentProposal = ref(null)
+    const lastSavedAt = ref(null)
+
     
     // Client dropdown
     const showClientDropdown = ref(false)
@@ -1478,8 +1480,8 @@ const onSupplierChange = () => {
     }
 
 const openCreateModal = async () => {
-  allowOverlayClose.value = false
   isEditing.value = false;
+  allowOverlayClose.value = false
   initializing = true;              // <<< NOVO
   resetForm();
   resetSupplierState();
@@ -2927,6 +2929,7 @@ const onQtyChange = (row) => {
       closeModal,
       saveAndExit,
       onOverlayClick,
+      lastSavedAt,
       toggleClientDropdown,
       selectClient,
       saveProposal,
