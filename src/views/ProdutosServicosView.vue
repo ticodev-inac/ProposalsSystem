@@ -727,9 +727,16 @@
       <div class="modal-content categories-modal" @click.stop>
         <div class="modal-header">
           <h2>Gerenciar Categorias</h2>
-          <button class="close-btn" @click="closeCategoriesModal">
-            <i class="fas fa-times"></i>
-          </button>
+      <!-- Botão X para fechar -->
+      <button
+        type="button"
+        class="modal-close-btn"
+        @click="closeCategoriesModal"
+        aria-label="Fechar"
+        title="Fechar"
+      >
+        ×
+      </button>
         </div>
         
         <div class="modal-body">
@@ -2183,5 +2190,28 @@ const serviceData = {
   .filter-section {
     min-width: auto;
   }
+
+  /* Modal de Categorias: botão X */
+.categories-modal { position: relative; }
+
+.categories-modal .modal-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  color: #6c757d;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.categories-modal .modal-close-btn:hover {
+  background: #f1f3f5;
+  color: #343a40;
+}
+
 }
 </style>

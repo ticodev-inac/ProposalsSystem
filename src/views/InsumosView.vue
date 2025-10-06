@@ -1,25 +1,22 @@
 <template>
   <div class="insumos-page">
     <!-- Header Padronizado -->
-    <HeaderProposal
-      title="Insumos"
-      subtitle="Adicione materiais, mão de obra e equipamentos"
-      :context-info="proposalContextInfo"
-      :can-advance="canAdvance"
-      @cancel="cancelEditing"
-      @advance="goToOpcionais"
-    >
-      <template #actions>
-        <div class="header-actions">
-          <button class="btn btn-secondary btn-lg" @click="showTypesModal = true">
-            <i class="fas fa-tags"></i> Gerenciar Tipos
-          </button>
-          <button class="btn btn-primary btn-lg" @click="showCreateModal = true">
-            <i class="fas fa-plus"></i> Adicionar Insumo
-          </button>
-        </div>
-      </template>
-    </HeaderProposal>
+<HeaderProposal
+  title="Insumos"
+  subtitle="Adicione materiais, mão de obra e equipamentos"
+>
+
+  <template #actions>
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-lg" @click="showTypesModal = true">
+        <i class="fas fa-tags"></i> Gerenciar Tipos
+      </button>
+      <button class="btn btn-primary btn-lg" @click="showCreateModal = true">
+        <i class="fas fa-plus"></i> Adicionar Insumo
+      </button>
+    </div>
+  </template>
+</HeaderProposal>
 
     <!-- Seção de Busca e Filtros -->
     <div class="search-section">
@@ -71,38 +68,35 @@
             <div class="insumo-name">{{ insumo.codigo }}</div>
             <div class="insumo-description">{{ insumo.descricao }}</div>
           </div>
-          <div class="grid-cell">
-            <span class="type-badge" :class="getTypeBadgeClass(insumo.tipo)" :style="{ backgroundColor: getTypeColor(insumo.tipo) }">
-              {{ getTypeLabel(insumo.tipo) }}
-            </span>
-          </div>
+<div class="grid-cell">
+  <span
+    class="category-chip"
+    :style="{ backgroundColor: getTypeColor(insumo.tipo), color: '#fff' }"
+  >
+    {{ getTypeLabel(insumo.tipo) }}
+  </span>
+</div>
+
           <div class="grid-cell">{{ formatCurrency(insumo.valor_unitario) }}</div>
           <div class="grid-cell">{{ insumo.unidade }}</div>
           <div class="grid-cell">
-            <div class="action-buttons">
-              <button 
-                class="btn btn-sm btn-secondary" 
-                @click="editInsumo(insumo)"
-                title="Editar"
-              >
-                <i class="fas fa-edit"></i>
-              </button>
-              <button 
-                class="btn btn-sm btn-danger" 
-                @click="deleteInsumo(insumo.id)"
-                title="Excluir"
-              >
-                <i class="fas fa-trash"></i>
-              </button>
-              <button 
-                v-if="!!currentProposalId"
-                class="btn btn-sm btn-success" 
-                @click="selectForProposal(insumo)"
-                title="Adicionar à proposta"
-              >
-                <i class="fas fa-cart-plus"></i>
-              </button>
-            </div>
+<div class="action-buttons">
+  <button 
+    class="btn btn-sm btn-secondary" 
+    @click="editInsumo(insumo)"
+    title="Editar"
+  >
+    <i class="fas fa-edit"></i>
+  </button>
+  <button 
+    class="btn btn-sm btn-danger" 
+    @click="deleteInsumo(insumo.id)"
+    title="Excluir"
+  >
+    <i class="fas fa-trash"></i>
+  </button>
+</div>
+
           </div>
         </div>
       </div>
@@ -1666,4 +1660,17 @@ const saveInsumo = async () => {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
+.category-chip {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #e5e7eb;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
 </style>
