@@ -3082,6 +3082,7 @@ const onQtyChange = (row) => {
       form,
       activeTab,
       tabs,
+      onQtyChange,
       filterProposals,
       filterClients,
       clearSearch,
