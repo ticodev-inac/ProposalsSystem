@@ -589,221 +589,174 @@ class PDFGenerator {
     return s !== String(text).trim() ? (s.slice(0, -1) + '…') : s;
   }
 
+
   _addItemsSection(items, title, subtotalLabel, subtotalValue, opts = {}) {
-    this._checkPageBreak(28);
+  this._checkPageBreak(28);
 
-    const doc = this.doc;
-    const M = this.SPACE.marginX;
-    const pageW = doc.internal.pageSize.getWidth();
-    const tableW = pageW - (M * 2);
-    const showPriceCols = opts.forceShowPrices === true ? true : this.showPrices;
-    const unitOnly = !!opts.hideSubtotalCol && showPriceCols;
+  const doc = this.doc;
+  const M = this.SPACE.marginX;
+  const pageW = doc.internal.pageSize.getWidth();
+  const tableW = pageW - (M * 2);
 
-    // —— estilos da tabela/banners ——
-    const SUB_H = 7.2;                 // altura do banner de subtotal
-    const BANNER_FS = 11;              // fonte dos banners
-    const ROW_H = 10.2;                // altura das linhas do corpo
-    const HEAD_H = 8.6;                // altura do cabeçalho
-    const PAD_X = 2, PAD_Y = 1.2;
-    const NAME_FS = 9.6, DESC_FS = 8.7, DESC_COLOR = [100, 100, 100];
+  // >>> NOVO: controla preços por seção
+  const showPriceCols = opts.forceShowPrices === true ? true : this.showPrices;
+  const unitOnly      = !!opts.hideSubtotalCol && showPriceCols; // Qtd + Valor Unit.
 
-    // cores
-    const titleColor = [66, 133, 244];  // azul do título de seção
-    const subtotalColor = [214, 124, 28];  // laranja do subtotal
-    const headColor = [10, 42, 102];   // azul escuro do head da tabela
+  // estilos
+  const SUB_H = 7.2, BANNER_FS = 11, ROW_H = 10.2, HEAD_H = 8.6;
+  const PAD_X = 2, PAD_Y = 1.2;
+  const NAME_FS = 9.6, DESC_FS = 8.7, DESC_COLOR = [100,100,100];
+  const titleColor = [66,133,244], subtotalColor = [214,124,28], headColor = [10,42,102];
 
-    // ===== Quebra antecipada para não “quebrar” a seção =====
-    // espaço mínimo: título completo + cabeçalho da tabela + 1 linha
-    const MIN_FOR_SECTION =
-      this.SPACE.sectionTop +
-      this.SPACE.titleHeight +
-      this.SPACE.afterTitle +
-      HEAD_H +
-      ROW_H +
-      4; // respiro
-    this._checkPageBreak(MIN_FOR_SECTION);
+  // reserva espaço p/ título + cabeçalho + 1 linha
+  const MIN_FOR_SECTION =
+    this.SPACE.sectionTop + this.SPACE.titleHeight + this.SPACE.afterTitle + HEAD_H + ROW_H + 4;
+  this._checkPageBreak(MIN_FOR_SECTION);
 
-    // ====== TÍTULO (mesmo padrão do “DADOS DO EVENTO”) ======
-    this._drawTitleBar(String(title).toUpperCase(), titleColor);
+  // título
+  this._drawTitleBar(String(title).toUpperCase(), titleColor);
+  const desiredGap = 1.0;
+  this.currentY -= Math.max(0, (this.SPACE.afterTitle - desiredGap));
 
-    // Título mais perto da tabela: reduz o gap pós-título
-    const desiredGap = 1.0; // ~1mm
-    const reduceBy = Math.max(0, (this.SPACE.afterTitle - desiredGap));
-    this.currentY -= reduceBy;
+  if (!items || items.length === 0) {
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(10);
+    doc.text(`Nenhum item em ${title.toLowerCase()}`, M, this.currentY);
+    this._moveY(8);
+    return;
+  }
 
-    // ===== sem itens?
-    if (!items || items.length === 0) {
-      doc.setFont('helvetica', 'italic'); // Arial no mapeamento
-      doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`Nenhum item em ${title.toLowerCase()}`, M, this.currentY);
-      this._moveY(8);
-      return;
+  // >>> NOVO: cabeçalho & colunas com/sem subtotal
+  const head = !showPriceCols
+    ? [['Item', 'Qtd']]
+    : (unitOnly ? [['Item', 'Qtd', 'Valor Unit.']]
+                : [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']]);
+
+  const columnStyles = !showPriceCols
+    ? {
+        0: { cellWidth: tableW * 0.82, halign: 'left',  valign: 'middle' },
+        1: { cellWidth: tableW * 0.18, halign: 'center',valign: 'middle' },
+      }
+    : unitOnly
+    ? {
+        0: { cellWidth: tableW * 0.62, halign: 'left',  valign: 'middle' },
+        1: { cellWidth: tableW * 0.14, halign: 'center',valign: 'middle' },
+        2: { cellWidth: tableW * 0.24, halign: 'right', valign: 'middle' }, // use 'center' se preferir
+      }
+    : {
+        0: { cellWidth: tableW * 0.50, halign: 'left',  valign: 'middle' },
+        1: { cellWidth: tableW * 0.11, halign: 'center',valign: 'middle' },
+        2: { cellWidth: tableW * 0.195,halign: 'right', valign: 'middle' },
+        3: { cellWidth: tableW * 0.195,halign: 'right', valign: 'middle' },
+      };
+
+  // dados
+  let subtotalSum = 0;
+  const tableData = items.map(it => {
+    const name = String(it.codigo || it.name || it.product_name || it.titulo || it.item_name || '-').trim();
+    const desc = String(it.descricao || it.description || it.product_description || '').trim();
+    const qty  = Number(it.quantidade ?? it.qtd ?? it.qtde ?? 0) || 0;
+
+    if (!showPriceCols) {
+      const unitRaw = it.valor_unitario ?? it.price ?? it.unit_price ?? 0;
+      const unitNum = this._parseCurrencyToNumber(unitRaw);
+      subtotalSum += qty * (Number.isFinite(unitNum) ? unitNum : 0);
+      return [{ name, desc }, String(qty)];
     }
 
-    // ===== cabeçalho/colunas
-    const head = !showPriceCols
-      ? [['Item', 'Qtd']]
-      : (unitOnly ? [['Item', 'Qtd', 'Valor Unit.']] : [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']]);
-
-    const columnStyles = !showPriceCols
-      ? {
-        0: { cellWidth: tableW * 0.82, halign: 'left', valign: 'middle' },
-        1: { cellWidth: tableW * 0.18, halign: 'center', valign: 'middle' },
-      }
-      : unitOnly
-        ? {
-          0: { cellWidth: tableW * 0.62, halign: 'left', valign: 'middle' },
-          1: { cellWidth: tableW * 0.14, halign: 'center', valign: 'middle' },
-          2: { cellWidth: tableW * 0.24, halign: 'right', valign: 'middle' },
-        }
-        : {
-          0: { cellWidth: tableW * 0.50, halign: 'left', valign: 'middle' },
-          1: { cellWidth: tableW * 0.11, halign: 'center', valign: 'middle' },
-          2: { cellWidth: tableW * 0.195, halign: 'right', valign: 'middle' },
-          3: { cellWidth: tableW * 0.195, halign: 'right', valign: 'middle' },
-        };
-
-    // ===== dados + subtotal calculado da seção (mesmo quando ocultando preços)
-    let subtotalSum = 0;
-
-    const tableData = items.map(it => {
-      const name = String(it.codigo || it.name || it.product_name || it.titulo || it.item_name || '-').trim();
-      const desc = String(it.descricao || it.description || it.product_description || '').trim();
-      const qty = Number(it.quantidade ?? it.qtd ?? it.qtde ?? 0) || 0;
-
-      if (!showPriceCols) {
-        const unitRaw = it.valor_unitario ?? it.price ?? it.unit_price ?? 0;
-        const unitNum = this._parseCurrencyToNumber(unitRaw);
-        subtotalSum += qty * (Number.isFinite(unitNum) ? unitNum : 0);
-        return [{ name, desc }, String(qty)];
-      }
-      if (unitOnly) {
-        const unitRaw =
-          it.valor_unitario ?? it.unitario ?? it.preco_unitario ??
-          it.valor ?? it.valor_unitario_value ?? it.unit_value ?? it.valorUnitario;
-        const unitNum = this._parseCurrencyToNumber(unitRaw);
-        subtotalSum += qty * (Number.isFinite(unitNum) ? unitNum : 0); // ainda conta p/ total, mesmo sem exibir
-        const unitDisplay = it.valor_unitario_formatted ??
-          (typeof unitRaw === 'string' && unitRaw.trim() ? unitRaw : this._formatCurrency(unitNum));
-        return [{ name, desc }, String(qty), unitDisplay];
-      }
-
-
+    if (unitOnly) {
       const unitRaw =
         it.valor_unitario ?? it.unitario ?? it.preco_unitario ??
         it.valor ?? it.valor_unitario_value ?? it.unit_value ?? it.valorUnitario;
-
       const unitNum = this._parseCurrencyToNumber(unitRaw);
-
-      const subtotalProvided =
-        it.subtotal ?? it.sub_total ?? it.subtotal_value ?? it.total ?? it.total_value;
-
-      const subtotalNum = (subtotalProvided != null && subtotalProvided !== '')
-        ? this._parseCurrencyToNumber(subtotalProvided)
-        : (qty * unitNum);
-
-      subtotalSum += Number.isFinite(subtotalNum) ? subtotalNum : 0;
-
+      subtotalSum += qty * (Number.isFinite(unitNum) ? unitNum : 0);
       const unitDisplay = it.valor_unitario_formatted ??
         (typeof unitRaw === 'string' && unitRaw.trim() ? unitRaw : this._formatCurrency(unitNum));
-
-      const subtotalDisplay = it.subtotal_formatted ?? this._formatCurrency(subtotalNum);
-
-      return [{ name, desc }, String(qty), unitDisplay, subtotalDisplay];
-    });
-
-    // ===== tabela
-    doc.autoTable({
-      startY: this.currentY,
-      head,
-      body: tableData,
-      theme: 'grid',
-      styles: {
-        fontSize: 8,
-        lineWidth: 0.1,
-        cellPadding: { top: PAD_Y, right: PAD_X, bottom: PAD_Y, left: PAD_X },
-        minCellHeight: ROW_H,
-        valign: 'middle'
-      },
-      headStyles: {
-        fillColor: headColor,
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        halign: 'center',
-        valign: 'middle',
-        cellPadding: { top: 1.0, right: 1.4, bottom: 1.0, left: 1.4 },
-        minCellHeight: HEAD_H,
-      },
-      columnStyles,
-      // mantém a margem superior abaixo do cabeçalho em TODAS as páginas
-      margin: {
-        top: this._headerContentStartY(),
-        bottom: this.bottomMargin,
-        left: M,
-        right: M
-      },
-      // respeita margem inferior
-
-      pageBreak: 'auto',
-      rowPageBreak: 'avoid',                 // 🔸 NÃO dividir linha entre páginas
-      showHead: 'everyPage',
-
-      didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index === 0 && typeof data.cell.raw === 'object') {
-          data.cell.text = '';
-          data.cell.styles.minCellHeight = ROW_H;
-        }
-      },
-      didDrawCell: (data) => {
-        if (data.section !== 'body' || data.column.index !== 0 || typeof data.cell.raw !== 'object') return;
-        const { x, y, width, height } = data.cell;
-        const { name, desc } = data.cell.raw;
-        const maxW = width - PAD_X * 2;
-
-        doc.setFont('helvetica', 'bold');    // Arial (mapeado)
-        doc.setFontSize(NAME_FS);
-        doc.setTextColor(0, 0, 0);
-        doc.text(this._fitOneLine(name, maxW), x + PAD_X, y + PAD_Y + 3);
-
-        if (desc) {
-          doc.setFont('helvetica', 'normal'); // Arial
-          doc.setFontSize(DESC_FS);
-          doc.setTextColor(...DESC_COLOR);
-          doc.text(this._fitOneLine(desc, maxW), x + PAD_X, y + height - PAD_Y + 0.2);
-          doc.setTextColor(0, 0, 0);
-        }
-      },
-
-      // 👉 desenha o header (logo) ANTES de imprimir conteúdo em páginas novas
-      didDrawPage: () => {
-        this._drawHeaderImageOnPage();
-      },
-    });
-
-    this.currentY = doc.lastAutoTable.finalY + 2;
-
-    // ===== SUBTOTAL DA SEÇÃO (banner laranja) — opcionalmente escondido
-    if (!opts.hideSubtotalBanner) {
-      this._checkPageBreak(SUB_H + 8);
-      const subY = this.currentY;
-      doc.setFillColor(...subtotalColor);
-      doc.rect(M, subY, tableW, SUB_H, 'F');
-
-      const valor = this._formatCurrency(subtotalSum);
-      doc.setFont('helvetica', 'bold'); // Arial
-      doc.setFontSize(BANNER_FS);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`${subtotalLabel}: ${valor}`, M + tableW - 8, subY + SUB_H / 2, {
-        align: 'right',
-        baseline: 'middle'
-      });
-      this.currentY = subY + SUB_H + 8;
-    } else {
-      // só um respiro leve ao invés do banner
-      this.currentY += 8;
+      return [{ name, desc }, String(qty), unitDisplay];
     }
+
+    const unitRaw =
+      it.valor_unitario ?? it.unitario ?? it.preco_unitario ??
+      it.valor ?? it.valor_unitario_value ?? it.unit_value ?? it.valorUnitario;
+    const unitNum = this._parseCurrencyToNumber(unitRaw);
+
+    const subtotalProvided =
+      it.subtotal ?? it.sub_total ?? it.subtotal_value ?? it.total ?? it.total_value;
+
+    const subtotalNum = (subtotalProvided != null && subtotalProvided !== '')
+      ? this._parseCurrencyToNumber(subtotalProvided)
+      : (qty * unitNum);
+
+    subtotalSum += Number.isFinite(subtotalNum) ? subtotalNum : 0;
+
+    const unitDisplay = it.valor_unitario_formatted ??
+      (typeof unitRaw === 'string' && unitRaw.trim() ? unitRaw : this._formatCurrency(unitNum));
+    const subtotalDisplay = it.subtotal_formatted ?? this._formatCurrency(subtotalNum);
+
+    return [{ name, desc }, String(qty), unitDisplay, subtotalDisplay];
+  });
+
+  // tabela
+  doc.autoTable({
+    startY: this.currentY,
+    head, body: tableData,
+    theme: 'grid',
+    styles: {
+      fontSize: 8, lineWidth: 0.1,
+      cellPadding: { top: PAD_Y, right: PAD_X, bottom: PAD_Y, left: PAD_X },
+      minCellHeight: ROW_H, valign: 'middle'
+    },
+    headStyles: {
+      fillColor: headColor, textColor: [255,255,255],
+      fontStyle: 'bold', halign: 'center', valign: 'middle',
+      cellPadding: { top: 1.0, right: 1.4, bottom: 1.0, left: 1.4 },
+      minCellHeight: HEAD_H,
+    },
+    columnStyles,
+    margin: { top: this._headerContentStartY(), left: M, right: M, bottom: this.bottomMargin },
+    pageBreak: 'auto',
+    rowPageBreak: 'avoid',
+    showHead: 'everyPage',
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 0 && typeof data.cell.raw === 'object') {
+        data.cell.text = '';
+        data.cell.styles.minCellHeight = ROW_H;
+      }
+    },
+    didDrawCell: (data) => {
+      if (data.section !== 'body' || data.column.index !== 0 || typeof data.cell.raw !== 'object') return;
+      const { x, y, width, height } = data.cell;
+      const { name, desc } = data.cell.raw;
+      const maxW = width - PAD_X * 2;
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(NAME_FS); doc.setTextColor(0,0,0);
+      doc.text(this._fitOneLine(name, maxW), x + PAD_X, y + PAD_Y + 3);
+
+      if (desc) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(DESC_FS); doc.setTextColor(...DESC_COLOR);
+        doc.text(this._fitOneLine(desc, maxW), x + PAD_X, y + height - PAD_Y + 0.2);
+        doc.setTextColor(0,0,0);
+      }
+    },
+    didDrawPage: () => this._drawHeaderImageOnPage(),
+  });
+
+  this.currentY = doc.lastAutoTable.finalY + 2;
+
+  // >>> NOVO: banner opcional
+  if (!opts.hideSubtotalBanner) {
+    const subY = this.currentY;
+    doc.setFillColor(...subtotalColor);
+    doc.rect(M, subY, tableW, SUB_H, 'F');
+
+    const valor = this._formatCurrency(subtotalSum);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(BANNER_FS); doc.setTextColor(0,0,0);
+    doc.text(`${subtotalLabel}: ${valor}`, M + tableW - 8, subY + SUB_H / 2, { align: 'right', baseline: 'middle' });
+
+    this.currentY = subY + SUB_H + 8;
+  } else {
+    this.currentY += 8;
   }
+}
 
   // === TOTAL GERAL: apenas o banner ===
   _addDetailedTotalsSection(totals, optionals) {
@@ -1210,61 +1163,60 @@ class PDFGenerator {
     this.currentY = y + this.SPACE.sectionBottom
   }
 
+  // Garante espaço mínimo para começar um bloco com título
+_ensureBlockStart(minLines = 2, lead = 5.0, headingH =
+  this.SPACE.sectionTop + this.SPACE.titleHeight + this.SPACE.afterTitle) {
+  const need = headingH + (minLines * lead);
+  if (this._remainingSpace() < need) this._safeAddPage();
+}
+
+// Mede a altura de uma linha "rótulo: valor" em addDataSectionList
+_measureFluidRowHeight(label, value, maxW, lineHeight = this.SPACE.row) {
+  if (value == null || value === '') return 0;
+  this.doc.setFont('Arial', 'bold');
+  const labelTxt = `${label}:`;
+  const labelW = this.doc.getTextWidth(labelTxt);
+  const avail = Math.max(20, (maxW ?? this.contentWidth) - (labelW + this.LAYOUT.valueGap));
+  this.doc.setFont('Arial', 'normal');
+  const lines = this.doc.splitTextToSize(String(value), avail);
+  // usa mesma “regra” do _textRowFluid
+  return Math.max(lineHeight, lines.length * (lineHeight - 1));
+}
+
+
   // Lista simples (uma coluna): cada linha mede o rótulo e desenha o valor logo após
+  // Lista simples (uma coluna) com proteção de viúva/órfã
 addDataSectionList(title, items) {
-  // ——— regras de "viúva/órfã"
-  const MIN   = this.WIDOW?.minBottomLines ?? 3; // pelo menos 3 “linhas” livres
-  const baseH = this.SPACE.row;                  // altura padrão de uma linha
+  const lead = this.SPACE.row;
+  const MIN = this.WIDOW?.minBottomLines ?? 3;
 
-  // 1) garanta espaço para: título + (MIN linhas) do conteúdo
-  const needForTitle =
-    this.SPACE.sectionTop +
-    this.SPACE.titleHeight +
-    this.SPACE.afterTitle +
-    (MIN * baseH);
+  // precisa caber: título + pelo menos 2 linhas do conteúdo
+  this._ensureBlockStart(2, lead);
 
-  if (this._remainingSpace() < needForTitle) {
-    this._safeAddPage();
-  }
-
-  // ——— título da seção
   this._drawTitleBar(String(title).toUpperCase(), [66, 133, 244]);
   this.doc.setFont('Arial', 'normal');
   this.doc.setFontSize(10);
 
-  const x    = this.SPACE.marginX + 6;   // mesmo recuo do banner
-  const maxW = this.contentWidth - 6;    // largura útil
-  let   y    = this.currentY;            // logo abaixo do título
+  const x = this.SPACE.marginX + 6;       // alinha com texto do banner
+  const maxW = this.contentWidth - 6;
 
-  // 2) cada linha: estima altura antes de desenhar e evita sobrar “meia linha”
+  let y = this.currentY;
+
   for (const { label, value, line } of items) {
     if (value == null || value === '') continue;
+    const lh = line || lead;
 
-    const lineH = line || baseH;
+    // mede quantas “linhas” esse item vai consumir
+    const h = this._measureFluidRowHeight(label, value, maxW, lh);
+    // para a proteção, exigimos que caibam pelo menos MIN linhas do item atual
+    const need = Math.min(Math.ceil(h / lh), MIN) * lh + 2;
 
-    // —— estimativa de altura da linha (mesma lógica usada em _textRowFluid)
-    // mede a parte do rótulo para saber quanto sobra para o valor
-    const labelTxt = `${label}:`;
-    this.doc.setFont('Arial', 'bold');
-    const labelW = this.doc.getTextWidth(labelTxt);
-    const avail  = Math.max(20, maxW - (labelW + this.LAYOUT.valueGap));
-
-    this.doc.setFont('Arial', 'normal');
-    const lines = Array.isArray(value) ? value
-      : this.doc.splitTextToSize(String(value), avail);
-    const hEst  = Math.max(lineH, lines.length * (lineH - 1));
-
-    const rem = this._remainingSpace();
-
-    // quebra se a linha não couber OU se, depois dela,
-    // sobraria menos que MIN linhas (para não deixar “restinho” no rodapé)
-    if (rem < hEst || (rem - hEst) < (MIN * lineH)) {
+    if (this._remainingSpace() < need) {
       this._safeAddPage();
       y = this.currentY;
     }
 
-    // desenha de fato a linha
-    y = this._textRowFluid(label, value, x, y, maxW, lineH);
+    y = this._textRowFluid(label, value, x, y, maxW, lh);
   }
 
   this.currentY = y + this.SPACE.sectionBottom;
@@ -1326,7 +1278,6 @@ addDataSectionList(title, items) {
     this._moveY(2);
   }
 }
-
 
 
 // Função de conveniência para gerar PDF
