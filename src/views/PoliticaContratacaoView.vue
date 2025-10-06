@@ -1,31 +1,23 @@
 <template>
   <div class="politica-contratacao-page">
-    <HeaderProposal
-      title="Política de Contratação"
-      subtitle="Configure as políticas que aparecerão nas propostas"
-      :showProposalContext="false"
-      :showCancelButton="true"
-      cancelButtonText="← Voltar para Condições"
-      :showAdvanceButton="true"
-      :showSaveButton="false"
-      @cancel="voltarParaCondicoes"
-      @advance="seguirParaFornecedor"
-    />
+    <!-- Cabeçalho simples padronizado -->
+    <div class="simple-header">
+      <h1>Política de Contratação</h1>
+      <p class="subtitle">Configure as políticas que aparecerão nas propostas</p>
+    </div>
+
     <div class="politicas-container" v-if="!loading">
       <div v-if="politicas && politicas.length > 0" class="politicas-content">
-        <div v-for="(politica, index) in politicas" :key="politica.id || index" class="politica-section">
+        <div
+          v-for="(politica, index) in politicas"
+          :key="politica.id || index"
+          class="politica-section"
+        >
           <div class="section-header">
             <h3>{{ politica.titulo }}</h3>
-            <div class="section-actions">
-              <button class="btn-icon" title="Editar">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button class="btn-icon btn-danger" title="Excluir">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
+            <!-- 🔻 Removidos os botões de editar/excluir -->
           </div>
-          
+
           <div class="section-content">
             <div class="content-box">
               <p>{{ politica.conteudo }}</p>
@@ -39,7 +31,10 @@
           <i class="fas fa-handshake"></i>
         </div>
         <h3>Nenhuma política configurada</h3>
-        <p>Configure as políticas de contratação na tela de <strong>Configurações Fixas</strong> para visualizá-las aqui.</p>
+        <p>
+          Configure as políticas de contratação na tela de
+          <strong>Configurações Fixas</strong> para visualizá-las aqui.
+        </p>
         <router-link to="/fixo" class="btn btn-primary">
           <i class="fas fa-cog"></i> Ir para Configurações Fixas
         </router-link>
@@ -56,16 +51,12 @@
 <script>
 import { ref, onMounted } from 'vue'
 import { FixoService } from '@/services/fixoService'
-import { useRouter } from 'vue-router'
 import { supabase } from '@/services/supabase'
 import { useDatabaseStore } from '@/stores/database'
-import HeaderProposal from '@/components/HeaderProposal.vue'
 
 export default {
   name: 'PoliticaContratacaoView',
-  components: { HeaderProposal },
   setup() {
-    const router = useRouter()
     const database = useDatabaseStore()
     const loading = ref(true)
     const politicas = ref([])
@@ -75,10 +66,10 @@ export default {
       try {
         loading.value = true
         const data = await FixoService.getPoliticaContratacao()
-        
         if (data) {
           const parsedData = typeof data === 'string' ? JSON.parse(data) : data
           politicas.value = Array.isArray(parsedData) ? parsedData : []
+          // salva na proposta se houver proposta aberta
         } else {
           politicas.value = []
         }
@@ -90,50 +81,13 @@ export default {
       }
     }
 
-    const savePoliticasToProposal = async () => {
-      if (!database.currentProposalId || !politicas.value.length) return
 
-      try {
-        saving.value = true
-        
-        const { error } = await supabase
-          .from('proposals')
-          .update({ 
-            politica: JSON.stringify(politicas.value),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', database.currentProposalId)
 
-        if (error) throw error
-
-        console.log('Políticas de contratação salvas na proposta')
-      } catch (error) {
-        console.error('Erro ao salvar políticas:', error)
-        alert('Erro ao salvar políticas: ' + error.message)
-      } finally {
-        saving.value = false
-      }
-    }
-
-    const voltarParaCondicoes = () => {
-      router.push('/condicoes-gerais')
-    }
-
-    const seguirParaFornecedor = async () => {
-      // Salvar políticas antes de avançar
-      await savePoliticasToProposal()
-      router.push('/dados-fornecedor')
-    }
-
-    onMounted(() => {
-      loadPoliticas()
-    })
+    onMounted(loadPoliticas)
 
     return {
       loading,
-      politicas,
-      voltarParaCondicoes,
-      seguirParaFornecedor
+      politicas
     }
   }
 }
@@ -146,28 +100,23 @@ export default {
   margin: 0 auto;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 30px;
+/* Cabeçalho simples — mesmo padrão para todas as telas */
+.simple-header {
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1.5rem 2rem;
+  margin-bottom: 2rem;
 }
-
-.page-header h1 {
-  color: #2c3e50;
-  margin-bottom: 8px;
-  font-size: 28px;
-  font-weight: 600;
+.simple-header h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
 }
-
-.page-subtitle {
-  color: #7f8c8d;
-  font-size: 16px;
+.simple-header .subtitle {
+  font-size: 1rem;
+  color: #6b7280;
   margin: 0;
-}
-
-.btn-seguir {
-  margin-left: auto;
 }
 
 .politicas-container {
@@ -186,7 +135,6 @@ export default {
   border-bottom: 1px solid #e9ecef;
   padding-bottom: 25px;
 }
-
 .politica-section:last-child {
   border-bottom: none;
   margin-bottom: 0;
@@ -199,7 +147,6 @@ export default {
   align-items: center;
   margin-bottom: 15px;
 }
-
 .section-header h3 {
   color: #2c3e50;
   margin: 0;
@@ -207,42 +154,13 @@ export default {
   font-weight: 600;
 }
 
-.section-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.btn-icon {
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 6px;
-  background: #f8f9fa;
-  color: #6c757d;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.btn-icon:hover {
-  background: #e9ecef;
-  color: #495057;
-}
-
-.btn-icon.btn-danger:hover {
-  background: #dc3545;
-  color: white;
-}
-
+/* caixas de conteúdo */
 .content-box {
   background: #f8f9fa;
   border: 1px solid #e9ecef;
   border-radius: 8px;
   padding: 20px;
 }
-
 .content-box p {
   margin: 0;
   line-height: 1.6;
@@ -250,30 +168,17 @@ export default {
   white-space: pre-wrap;
 }
 
+/* estados */
 .empty-state {
   text-align: center;
   padding: 60px 30px;
   color: #7f8c8d;
 }
-
 .empty-icon {
   font-size: 48px;
   margin-bottom: 20px;
   color: #bdc3c7;
 }
-
-.empty-state h3 {
-  color: #2c3e50;
-  margin-bottom: 10px;
-  font-size: 20px;
-}
-
-.empty-state p {
-  margin-bottom: 25px;
-  font-size: 16px;
-  line-height: 1.5;
-}
-
 .btn {
   display: inline-flex;
   align-items: center;
@@ -287,12 +192,10 @@ export default {
   cursor: pointer;
   transition: all 0.2s ease;
 }
-
 .btn-primary {
   background: #007bff;
   color: white;
 }
-
 .btn-primary:hover {
   background: #0056b3;
   transform: translateY(-1px);
@@ -303,7 +206,6 @@ export default {
   padding: 60px 30px;
   color: #7f8c8d;
 }
-
 .spinner {
   width: 40px;
   height: 40px;
@@ -313,7 +215,6 @@ export default {
   animation: spin 1s linear infinite;
   margin: 0 auto 20px;
 }
-
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }

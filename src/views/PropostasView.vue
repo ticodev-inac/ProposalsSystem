@@ -4,7 +4,6 @@
       <div class="header-content">
         <h1>Propostas Feitas</h1>
         <p class="page-subtitle">Gerencie suas propostas comerciais</p>
-        <p class="page-status">Estado: editando</p>
       </div>
       <button class="btn-primary" @click="openCreateModal">
         <i class="fas fa-plus"></i>
