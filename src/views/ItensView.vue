@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="itens-page">
     <!-- Header Padronizado -->
     <HeaderProposal
@@ -15,7 +15,7 @@
           placeholder="Buscar itens..."
           @input="filterItens"
         />
-        <i class="fas fa-search"></i>
+        <i class="fa-solid fa-magnifying-glass"></i>
       </div>
 
       <div class="filters">
@@ -35,7 +35,7 @@
           @click="clearFilters"
           v-if="selectedSpecificCategory"
         >
-          <i class="fas fa-times"></i> Limpar Filtros
+          <i class="fa-solid fa-times"></i> Limpar Filtros
         </button>
       </div>
     </div>
@@ -79,14 +79,14 @@
                 @click="handleEdit(item)"
                 title="Editar"
               >
-                <i class="fas fa-edit"></i>
+                <i class="fa-solid fa-pen-to-square"></i>
               </button>
               <button
                 class="btn btn-sm btn-danger"
                 @click="deleteItem(item)"
                 title="Excluir"
               >
-                <i class="fas fa-trash"></i>
+                <i class="fa-solid fa-trash"></i>
               </button>
             </div>
           </div>
@@ -173,10 +173,10 @@
 
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" @click="closeEditServiceModal">
-                <i class="fas fa-times"></i> Cancelar
+                <i class="fa-solid fa-times"></i> Cancelar
               </button>
               <button type="submit" class="btn btn-primary" :disabled="saving">
-                <i class="fas" :class="saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+                <i class="fa-solid" :class="saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
                 {{ saving ? 'Salvando...' : 'Salvar' }}
               </button>
             </div>
@@ -751,3 +751,4 @@ export default {
   }
 }
 </style>
+

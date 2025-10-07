@@ -1,10 +1,10 @@
-<template>
+﻿<template>
   <div class="opcionais-page">
     <div class="page-header">
       <h1>Opcionais</h1>
       <div class="header-actions">
         <button class="btn btn-primary" @click="showCreateModal = true" v-if="!currentProposalId">
-          <i class="fas fa-plus"></i> Novo Opcional
+          <i class="fa-solid fa-plus"></i> Novo Opcional
         </button>
       </div>
     </div>
@@ -17,7 +17,7 @@
           placeholder="Buscar..."
           @input="currentProposalId ? filterItems() : filterOpcionais()"
         >
-        <i class="fas fa-search"></i>
+        <i class="fa-solid fa-magnifying-glass"></i>
       </div>
       <div class="filters" v-if="!currentProposalId">
         <select v-model="selectedStatus" @change="filterOpcionais">
@@ -59,7 +59,7 @@
                 @click="selectAsOptional(item)"
                 title="Selecionar como opcional"
               >
-                <i class="fas fa-cart-plus"></i>
+                <i class="fa-solid fa-cart-plus"></i>
               </button>
             </div>
           </div>
@@ -111,14 +111,14 @@
                 @click="editOpcional(opcional)"
                 title="Editar"
               >
-                <i class="fas fa-edit"></i>
+                <i class="fa-solid fa-pen-to-square"></i>
               </button>
               <button 
                 class="btn btn-sm btn-danger" 
                 @click="deleteOpcional(opcional.id)"
                 title="Excluir"
               >
-                <i class="fas fa-trash"></i>
+                <i class="fa-solid fa-trash"></i>
               </button>
             </div>
           </div>

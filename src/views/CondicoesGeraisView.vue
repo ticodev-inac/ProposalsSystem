@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="condicoes-gerais-page">
     <!-- Cabeçalho simples padronizado -->
     <div class="simple-header">
@@ -35,7 +35,7 @@
 
       <div class="empty-state" v-else>
         <div class="empty-icon">
-          <i class="fas fa-file-contract"></i>
+          <i class="fa-solid fa-file-contract"></i>
         </div>
         <h3>Nenhuma condição configurada</h3>
         <p>
@@ -43,7 +43,7 @@
           para visualizá-las aqui.
         </p>
         <router-link to="/fixo" class="btn btn-primary">
-          <i class="fas fa-cog"></i> Ir para Configurações Fixas
+          <i class="fa-solid fa-gear"></i> Ir para Configurações Fixas
         </router-link>
       </div>
     </div>
@@ -242,3 +242,4 @@ export default {
   100% { transform: rotate(360deg); }
 }
 </style>
+

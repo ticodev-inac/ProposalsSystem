@@ -10,8 +10,7 @@ import ProdutosServicosView from '../views/ProdutosServicosView.vue'
 import VendedorEmpresaView from '../views/VendedorEmpresaView.vue'
 import ItensView from '../views/ItensView.vue'
 import InsumosView from '../views/InsumosView.vue'
-import OpcionaisView from '../views/OpcionaisView.vue'
-import TotalGeralView from '../views/TotalGeralView.vue'
+
 import CondicoesGeraisView from '../views/CondicoesGeraisView.vue'
 import PoliticaContratacaoView from '../views/PoliticaContratacaoView.vue'
 

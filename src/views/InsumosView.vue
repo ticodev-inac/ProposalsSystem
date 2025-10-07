@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="insumos-page">
     <!-- Header Padronizado -->
 <HeaderProposal
@@ -9,10 +9,10 @@
   <template #actions>
     <div class="header-actions">
       <button class="btn btn-secondary btn-lg" @click="showTypesModal = true">
-        <i class="fas fa-tags"></i> Gerenciar Tipos
+        <i class="fa-solid fa-tags"></i> Gerenciar Tipos
       </button>
       <button class="btn btn-primary btn-lg" @click="showCreateModal = true">
-        <i class="fas fa-plus"></i> Adicionar Insumo
+        <i class="fa-solid fa-plus"></i> Adicionar Insumo
       </button>
     </div>
   </template>
@@ -27,7 +27,7 @@
           placeholder="Buscar insumos..."
           @input="filterInsumos"
         >
-        <i class="fas fa-search"></i>
+        <i class="fa-solid fa-magnifying-glass"></i>
       </div>
       <div class="filters">
         <select v-model="selectedType" @change="filterInsumos">
@@ -86,14 +86,14 @@
     @click="editInsumo(insumo)"
     title="Editar"
   >
-    <i class="fas fa-edit"></i>
+    <i class="fa-solid fa-pen-to-square"></i>
   </button>
   <button 
     class="btn btn-sm btn-danger" 
     @click="deleteInsumo(insumo.id)"
     title="Excluir"
   >
-    <i class="fas fa-trash"></i>
+    <i class="fa-solid fa-trash"></i>
   </button>
 </div>
 
@@ -190,7 +190,7 @@
                     @click="openQuickTypeModal"
                     title="Criar tipo rápido"
                   >
-                    <i class="fas fa-plus"></i>
+                    <i class="fa-solid fa-plus"></i>
                   </button>
                 </div>
               </div>
@@ -213,10 +213,10 @@
             
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" @click="closeModals">
-                <i class="fas fa-times"></i> Cancelar
+                <i class="fa-solid fa-times"></i> Cancelar
               </button>
               <button type="submit" class="btn btn-primary" :disabled="saving">
-                <i class="fas" :class="saving ? 'fa-spinner fa-spin' : (showEditModal ? 'fa-save' : 'fa-plus')"></i>
+                <i class="fa-solid" :class="saving ? 'fa-spinner fa-spin' : (showEditModal ? 'fa-floppy-disk' : 'fa-plus')"></i>
                 {{ saving ? 'Salvando...' : (showEditModal ? 'Atualizar' : 'Criar') }}
               </button>
             </div>
@@ -267,7 +267,7 @@
                 >
               </div>
               <button type="submit" class="btn btn-primary" :disabled="creatingType">
-                <i class="fas" :class="creatingType ? 'fa-spinner fa-spin' : 'fa-plus'"></i>
+                <i class="fa-solid" :class="creatingType ? 'fa-spinner fa-spin' : 'fa-plus'"></i>
                 {{ creatingType ? 'Criando...' : 'Adicionar Tipo' }}
               </button>
             </form>
@@ -308,10 +308,10 @@
                   >
                   <div class="edit-actions">
                     <button class="btn btn-sm btn-success" @click="saveTypeEdit">
-                      <i class="fas fa-check"></i>
+                      <i class="fa-solid fa-check"></i>
                     </button>
                     <button class="btn btn-sm btn-secondary" @click="cancelTypeEdit">
-                      <i class="fas fa-times"></i>
+                      <i class="fa-solid fa-times"></i>
                     </button>
                   </div>
                 </div>
@@ -328,7 +328,7 @@
                       @click="startTypeEdit(type)"
                       title="Editar tipo"
                     >
-                      <i class="fas fa-edit"></i>
+                      <i class="fa-solid fa-pen-to-square"></i>
                     </button>
                     <button 
                       v-if="!isDefaultType(type.name) && getTypeUsageCount(type.name) === 0"
@@ -336,7 +336,7 @@
                       @click="deleteType(type.id)"
                       title="Excluir tipo"
                     >
-                      <i class="fas fa-trash"></i>
+                      <i class="fa-solid fa-trash"></i>
                     </button>
                   </div>
                 </div>

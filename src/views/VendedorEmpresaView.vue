@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="vendedor-empresa-view">
     <div class="page-header">
       <h1>Vendedor/Empresa</h1>
       <button class="btn-primary" @click="openCreateModal">
-        <i class="fas fa-plus"></i>
+        <i class="fa-solid fa-plus"></i>
         Novo Fornecedor
       </button>
     </div>
@@ -16,13 +16,13 @@
           placeholder="Buscar fornecedores..."
           @input="filterSuppliers"
         >
-        <i class="fas fa-search"></i>
+        <i class="fa-solid fa-magnifying-glass"></i>
       </div>
     </div>
 
     <div class="suppliers-grid" v-if="!loading">
       <div v-if="filteredSuppliers.length === 0" class="empty-state">
-        <i class="fas fa-building"></i>
+        <i class="fa-solid fa-building"></i>
         <h3>Nenhum fornecedor encontrado</h3>
         <p>Adicione seu primeiro fornecedor clicando no botão "Novo Fornecedor"</p>
       </div>
@@ -42,10 +42,10 @@
           </div>
           <div class="supplier-actions">
             <button @click="editSupplier(supplier)" class="btn-edit" title="Editar">
-              <i class="fas fa-edit"></i>
+              <i class="fa-solid fa-pen-to-square"></i>
             </button>
             <button @click="deleteSupplier(supplier.id)" class="btn-delete" title="Excluir">
-              <i class="fas fa-trash"></i>
+              <i class="fa-solid fa-trash"></i>
             </button>
           </div>
         </div>
@@ -53,7 +53,7 @@
     </div>
 
     <div v-if="loading" class="loading">
-      <i class="fas fa-spinner fa-spin"></i>
+      <i class="fa-solid fa-spinner fa-spin"></i>
       <p>Carregando fornecedores...</p>
     </div>
 

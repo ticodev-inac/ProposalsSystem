@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="politica-contratacao-page">
     <!-- Cabeçalho simples padronizado -->
     <div class="simple-header">
@@ -28,7 +28,7 @@
 
       <div v-else class="empty-state">
         <div class="empty-icon">
-          <i class="fas fa-handshake"></i>
+          <i class="fa-solid fa-handshake"></i>
         </div>
         <h3>Nenhuma política configurada</h3>
         <p>
@@ -36,7 +36,7 @@
           <strong>Configurações Fixas</strong> para visualizá-las aqui.
         </p>
         <router-link to="/fixo" class="btn btn-primary">
-          <i class="fas fa-cog"></i> Ir para Configurações Fixas
+          <i class="fa-solid fa-gear"></i> Ir para Configurações Fixas
         </router-link>
       </div>
     </div>
@@ -220,3 +220,4 @@ export default {
   100% { transform: rotate(360deg); }
 }
 </style>
+

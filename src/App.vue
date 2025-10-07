@@ -5,79 +5,90 @@
       <div class="sidebar-header">
         <h2 v-if="!sidebarCollapsed">Sistema de Propostas</h2>
         <button class="sidebar-toggle" @click="toggleSidebar">
-          <i class="fas fa-bars"></i>
+          <i class="fa-solid fa-bars"></i>
         </button>
       </div>
       
-      <ul class="sidebar-menu">
-        <li class="menu-item">
-          <router-link to="/" class="menu-link">
-            <i class="fas fa-home"></i>
-            <span v-if="!sidebarCollapsed">Dashboard</span>
-          </router-link>
-        </li>
-        <li class="menu-item">
-          <router-link to="/fixo" class="menu-link">
-            <i class="fas fa-cog"></i>
-            <span v-if="!sidebarCollapsed">Fixo</span>
-          </router-link>
-        </li>
-        <li class="menu-item">
-          <router-link to="/clientes" class="menu-link">
-            <i class="fas fa-users"></i>
-            <span v-if="!sidebarCollapsed">Clientes</span>
-          </router-link>
-        </li>
-        <li class="menu-item">
-          <router-link to="/modelos" class="menu-link">
-            <i class="fas fa-file-alt"></i>
-            <span v-if="!sidebarCollapsed">Modelos</span>
-          </router-link>
-        </li>
-        <li class="menu-item">
-          <router-link to="/propostas" class="menu-link">
-            <i class="fas fa-file-contract"></i>
-            <span v-if="!sidebarCollapsed">Propostas</span>
-          </router-link>
-        </li>
-        <li class="menu-item">
-          <router-link to="/produtos-servicos" class="menu-link">
-            <i class="fas fa-box"></i>
-            <span v-if="!sidebarCollapsed">Produtos/Serviços</span>
-          </router-link>
-        </li>
-        <li class="menu-item">
-          <router-link to="/vendedor-empresa" class="menu-link">
-            <i class="fas fa-building"></i>
-            <span v-if="!sidebarCollapsed">Vendedor/Empresa</span>
-          </router-link>
-        </li>
-        <li class="menu-item">
-          <router-link to="/itens" class="menu-link">
-            <i class="fas fa-list"></i>
-            <span v-if="!sidebarCollapsed">Itens</span>
-          </router-link>
-        </li>
-        <li class="menu-item">
-          <router-link to="/insumos" class="menu-link">
-            <i class="fas fa-tools"></i>
-            <span v-if="!sidebarCollapsed">Insumos</span>
-          </router-link>
-        </li>
+  <ul class="sidebar-menu">
+  <li class="menu-item">
+    <router-link to="/" class="menu-link">
+      <i class="fa-solid fa-house"></i>
+      <span v-if="!sidebarCollapsed">Dashboard</span>
+    </router-link>
+  </li>
 
-        <li class="menu-item">
-          <router-link to="/condicoes-gerais" class="menu-link">
-            <i class="fas fa-file-text"></i>
-            <span v-if="!sidebarCollapsed">Condições Gerais</span>
-          </router-link>
-        </li>
-        <li class="menu-item">
-          <router-link to="/politica-contratacao" class="menu-link">
-            <i class="fas fa-shield-alt"></i>
-            <span v-if="!sidebarCollapsed">Política Contratação</span>
-          </router-link>
-        </li>
-      </ul>
+  <li class="menu-item">
+    <router-link to="/fixo" class="menu-link">
+      <i class="fa-solid fa-gear"></i>
+      <span v-if="!sidebarCollapsed">Fixo</span>
+    </router-link>
+  </li>
+
+  <li class="menu-item">
+    <router-link to="/clientes" class="menu-link">
+      <i class="fa-solid fa-users"></i>
+      <span v-if="!sidebarCollapsed">Clientes</span>
+    </router-link>
+  </li>
+
+  <li class="menu-item">
+    <router-link to="/modelos" class="menu-link">
+      <i class="fa-solid fa-file-lines"></i>
+      <span v-if="!sidebarCollapsed">Modelos</span>
+    </router-link>
+  </li>
+
+  <li class="menu-item">
+    <router-link to="/propostas" class="menu-link">
+      <i class="fa-solid fa-file-contract"></i>
+      <span v-if="!sidebarCollapsed">Propostas</span>
+    </router-link>
+  </li>
+
+  <li class="menu-item">
+    <router-link to="/produtos-servicos" class="menu-link">
+      <i class="fa-solid fa-box"></i>
+      <span v-if="!sidebarCollapsed">Produtos/Serviços</span>
+    </router-link>
+  </li>
+
+  <li class="menu-item">
+    <router-link to="/vendedor-empresa" class="menu-link">
+      <i class="fa-solid fa-building"></i>
+      <span v-if="!sidebarCollapsed">Vendedor/Empresa</span>
+    </router-link>
+  </li>
+
+  <li class="menu-item">
+    <router-link to="/itens" class="menu-link">
+      <i class="fa-solid fa-list"></i>
+      <span v-if="!sidebarCollapsed">Itens</span>
+    </router-link>
+  </li>
+
+  <li class="menu-item">
+    <router-link to="/insumos" class="menu-link">
+      <i class="fa-solid fa-screwdriver-wrench"></i>
+      <span v-if="!sidebarCollapsed">Insumos</span>
+    </router-link>
+  </li>
+
+  <li class="menu-item">
+    <router-link to="/condicoes-gerais" class="menu-link">
+      <i class="fa-solid fa-file-lines"></i>
+      <span v-if="!sidebarCollapsed">Condições Gerais</span>
+    </router-link>
+  </li>
+
+  <li class="menu-item">
+    <router-link to="/politica-contratacao" class="menu-link">
+      <i class="fa-solid fa-shield-halved"></i>
+      <span v-if="!sidebarCollapsed">Política Contratação</span>
+    </router-link>
+  </li>
+</ul>
+
+
 
       <!-- ✅ Versão no canto inferior esquerdo -->
       <div class="sidebar-version">v{{ appVersion }}</div>
@@ -258,4 +269,13 @@ body { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; background-c
   .top-header { padding: 10px 15px; }
   .top-header h1 { font-size: 1.3rem; }
 }
+/* Mata qualquer ícone injetado via ::before por outra lib (sem afetar Font Awesome) */
+.sidebar .menu-link i:not([class*="fa-"])::before { content: none !important; }
+
+/* Garante família/peso da FA6 caso algum reset mude isso */
+.sidebar .menu-link i[class*="fa-"] {
+  font-family: "Font Awesome 6 Free" !important;
+  font-weight: 900 !important; /* fa-solid */
+}
+
 </style>
