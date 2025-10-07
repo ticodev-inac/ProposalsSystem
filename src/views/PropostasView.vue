@@ -688,7 +688,23 @@
   v-for="(item, index) in form.items" 
   :key="index"
   class="item-card"
+  @dragover.prevent
+  @drop="onDrop('item', index)"
+  @dragenter="onDragEnter('item', index)"
+  @dragleave="onDragLeave('item', index)"
+  :class="{ 'drag-over': isDragOver('item', index) }"
 >
+  <!-- 👇 Grip/handle do drag -->
+  <button
+    class="drag-handle"
+    type="button"
+    draggable="true"
+    @dragstart="onDragStart('item', index, $event)"
+    title="Arrastar para reordenar"
+  >
+    <i class="fa-solid fa-grip-vertical"></i>
+  </button>
+
   <div class="item-info">
     <h6>{{ item.codigo }}</h6>
     <p>{{ item.descricao }}</p>
@@ -788,7 +804,23 @@
   v-for="(insumo, index) in form.insumos" 
   :key="index"
   class="item-card"
+  @dragover.prevent
+  @drop="onDrop('insumo', index)"
+  @dragenter="onDragEnter('insumo', index)"
+  @dragleave="onDragLeave('insumo', index)"
+  :class="{ 'drag-over': isDragOver('insumo', index) }"
 >
+  <button
+    class="drag-handle"
+    type="button"
+    draggable="true"
+    @dragstart="onDragStart('insumo', index, $event)"
+    title="Arrastar para reordenar"
+  >
+    <i class="fa-solid fa-grip-vertical"></i>
+  </button>
+
+
   <div class="item-info">
     <h6>{{ insumo.codigo }}</h6>
     <p>{{ insumo.descricao }}</p>
@@ -881,7 +913,22 @@
   v-for="(opcional, index) in form.opcionais" 
   :key="index"
   class="item-card"
+  @dragover.prevent
+  @drop="onDrop('opcional', index)"
+  @dragenter="onDragEnter('opcional', index)"
+  @dragleave="onDragLeave('opcional', index)"
+  :class="{ 'drag-over': isDragOver('opcional', index) }"
 >
+  <button
+    class="drag-handle"
+    type="button"
+    draggable="true"
+    @dragstart="onDragStart('opcional', index, $event)"
+    title="Arrastar para reordenar"
+  >
+    <i class="fa-solid fa-grip-vertical"></i>
+  </button>
+
   <div class="item-info">
     <h6>{{ opcional.codigo }}</h6>
     <p>{{ opcional.descricao }}</p>
@@ -3065,7 +3112,57 @@ const onQtyChange = (row) => {
   else row.quantity = Math.floor(n);
 };
 
+// estado simples de drag
+const dragState = ref({ type: null, from: -1 })
 
+const onDrop = (type, toIndex) => {
+  const { type: draggingType, from } = dragState.value
+  if (draggingType !== type || from === -1 || toIndex === -1) {
+    dragState.value = { type: null, from: -1 }
+    return
+  }
+
+  const list =
+    type === 'item'
+      ? form.value.items
+      : type === 'insumo'
+      ? form.value.insumos
+      : form.value.opcionais
+
+  if (from !== toIndex) {
+    const moved = list.splice(from, 1)[0]
+    list.splice(toIndex, 0, moved)
+  }
+
+  dragState.value = { type: null, from: -1 }
+}
+// estado do drag
+const dragOver = ref({ type: null, index: -1 })
+
+const onDragStart = (type, index, evt) => {
+  dragState.value = { type, from: index }
+  try {
+    evt.dataTransfer.effectAllowed = 'move'
+    evt.dataTransfer.setData('text/plain', String(index)) // alguns browsers exigem
+  } catch {}
+}
+
+const onDragEnter = (type, index) => {
+  // só destaca se for a mesma lista (itens/insumos/opcionais)
+  if (dragState.value.type === type) {
+    dragOver.value = { type, index }
+  }
+}
+
+const onDragLeave = (type, index) => {
+  if (dragOver.value.type === type && dragOver.value.index === index) {
+    dragOver.value = { type: null, index: -1 }
+  }
+}
+
+const isDragOver = (type, index) =>
+  dragOver.value.type === type && dragOver.value.index === index
+ 
     return {
       proposals,
       filteredProposals,
@@ -3082,6 +3179,11 @@ const onQtyChange = (row) => {
       activeTab,
       tabs,
       onQtyChange,
+      onDragStart,
+      onDrop,
+      onDragEnter,
+      onDragLeave,
+      isDragOver,
       filterProposals,
       filterClients,
       clearSearch,
@@ -5485,6 +5587,32 @@ const onQtyChange = (row) => {
   width: 120px;
   text-align: right;
   padding: 6px 8px;
+}
+/* handle à esquerda do card */
+.item-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;            /* espaço pro grip */
+}
+
+.drag-handle {
+  border: none;
+  background: transparent;
+  padding: 6px 8px;
+  margin-left: 2px;
+  margin-right: 6px;
+  cursor: grab;
+  color: #9aa0a6;
+  display: flex;
+  align-items: center;
+}
+.drag-handle:active { cursor: grabbing; }
+.drag-handle i { font-size: 18px; }
+
+/* feedback visual ao arrastar por cima */
+.item-card.drag-over {
+  border-color: #1976d2 !important;
+  box-shadow: 0 2px 8px rgba(25,118,210,0.15);
 }
 
 
