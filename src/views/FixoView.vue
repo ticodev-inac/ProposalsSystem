@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="fixo-view">
     <div class="page-header">
       <h1>Fixo</h1>
@@ -104,7 +104,7 @@
           <div class="form-section">
             <div class="section-actions">
               <button @click="adicionarSecao" class="btn btn-secondary">
-                <i class="fas fa-plus"></i> Adicionar Nova Seção
+                <i class="fa-solid fa-plus"></i> Adicionar Nova Seção
               </button>
             </div>
 
@@ -116,7 +116,7 @@
                   class="section-title-input"
                 />
                 <button @click="removerSecao(index)" class="btn btn-danger btn-small">
-                  <i class="fas fa-trash"></i>
+                  <i class="fa-solid fa-trash"></i>
                 </button>
               </div>
 

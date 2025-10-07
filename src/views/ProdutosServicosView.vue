@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="produtos-servicos-page">
     <div class="produtos-servicos-header">
       <div class="header-content">
@@ -33,11 +33,11 @@
           <h2>Produtos</h2>
           <div class="header-actions">
             <button class="btn-secondary" @click="openCategoriesModal('produto')">
-              <i class="fas fa-tags"></i>
+              <i class="fa-solid fa-tags"></i>
               Gerenciar Categorias
             </button>
             <button class="btn-primary" @click="openNewProductModal">
-              <i class="fas fa-plus"></i>
+              <i class="fa-solid fa-plus"></i>
               Novo Produto
             </button>
           </div>
@@ -45,7 +45,7 @@
         
         <div class="search-section">
           <div class="search-box">
-            <i class="fas fa-search"></i>
+            <i class="fa-solid fa-magnifying-glass"></i>
             <input 
               v-model="productSearch" 
               type="text" 
@@ -94,17 +94,17 @@
             </div>
             <div class="product-actions">
               <button class="btn-secondary" @click="openEditProductModal(product)">
-                <i class="fas fa-edit"></i>
+                <i class="fa-solid fa-pen-to-square"></i>
               </button>
               <button class="btn-danger" @click="deleteProduct(product.id)">
-                <i class="fas fa-trash"></i>
+                <i class="fa-solid fa-trash"></i>
               </button>
             </div>
           </div>
         </div>
         
         <div v-else class="empty-state">
-          <i class="fas fa-box"></i>
+          <i class="fa-solid fa-box"></i>
           <h3>Nenhum produto encontrado</h3>
           <p>Adicione seu primeiro produto clicando no botão "Novo Produto"</p>
         </div>
@@ -116,11 +116,11 @@
           <h2>Serviços</h2>
           <div class="header-actions">
             <button class="btn-secondary" @click="openCategoriesModal('servico')">
-              <i class="fas fa-tags"></i>
+              <i class="fa-solid fa-tags"></i>
               Gerenciar Categorias
             </button>
             <button class="btn-primary" @click="openNewServiceModal">
-              <i class="fas fa-plus"></i>
+              <i class="fa-solid fa-plus"></i>
               Novo Serviço
             </button>
           </div>
@@ -128,7 +128,7 @@
         
         <div class="search-section">
           <div class="search-box">
-            <i class="fas fa-search"></i>
+            <i class="fa-solid fa-magnifying-glass"></i>
             <input 
               v-model="serviceSearch" 
               type="text" 
@@ -177,17 +177,17 @@
             </div>
             <div class="service-actions">
               <button class="btn-secondary" @click="openEditServiceModal(service)">
-                <i class="fas fa-edit"></i>
+                <i class="fa-solid fa-pen-to-square"></i>
               </button>
               <button class="btn-danger" @click="deleteService(service.id)">
-                <i class="fas fa-trash"></i>
+                <i class="fa-solid fa-trash"></i>
               </button>
             </div>
           </div>
         </div>
         
         <div v-else class="empty-state">
-          <i class="fas fa-cogs"></i>
+          <i class="fa-solid fa-gears"></i>
           <h3>Nenhum serviço encontrado</h3>
           <p>Adicione seu primeiro serviço clicando no botão "Novo Serviço"</p>
         </div>
@@ -200,7 +200,7 @@
         <div class="modal-header">
           <h2>Novo Produto</h2>
           <button class="close-btn" @click="closeNewProductModal">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         
@@ -327,7 +327,7 @@
         <div class="modal-header">
           <h2>Editar Produto</h2>
           <button class="close-btn" @click="closeEditProductModal">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         
@@ -453,7 +453,7 @@
         <div class="modal-header">
           <h2>Novo Serviço</h2>
           <button class="close-btn" @click="closeNewServiceModal">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         
@@ -591,7 +591,7 @@
         <div class="modal-header">
           <h2>Editar Serviço</h2>
           <button class="close-btn" @click="closeEditServiceModal">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         
@@ -804,28 +804,28 @@
                   @click="updateCategory"
                   :disabled="savingCategory"
                 >
-                  <i class="fas fa-check"></i>
+                  <i class="fa-solid fa-check"></i>
                 </button>
                 <button 
                   v-if="editingCategory?.id === category.id"
                   class="btn-secondary"
                   @click="cancelEdit"
                 >
-                  <i class="fas fa-times"></i>
+                  <i class="fa-solid fa-times"></i>
                 </button>
                 <button 
                   v-if="editingCategory?.id !== category.id"
                   class="btn-secondary"
                   @click="startEdit(category)"
                 >
-                  <i class="fas fa-edit"></i>
+                  <i class="fa-solid fa-pen-to-square"></i>
                 </button>
                 <button 
                   v-if="editingCategory?.id !== category.id"
                   class="btn-danger"
                   @click="deleteCategory(category)"
                 >
-                  <i class="fas fa-trash"></i>
+                  <i class="fa-solid fa-trash"></i>
                 </button>
               </div>
             </div>

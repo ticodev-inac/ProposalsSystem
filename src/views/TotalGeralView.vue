@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="total-geral-page">
     <HeaderProposal
       title="Total Geral"
@@ -39,7 +39,7 @@
         <div class="summary-card">
           <div class="card-header">
             <h3>Produtos</h3>
-            <i class="fas fa-box"></i>
+            <i class="fa-solid fa-box"></i>
           </div>
           <div class="card-value">{{ formatCurrency(totals.produtos) }}</div>
           <div class="card-count">{{ counts.produtos }} itens</div>
@@ -48,7 +48,7 @@
         <div class="summary-card">
           <div class="card-header">
             <h3>Serviços</h3>
-            <i class="fas fa-cogs"></i>
+            <i class="fa-solid fa-gears"></i>
           </div>
           <div class="card-value">{{ formatCurrency(totals.servicos) }}</div>
           <div class="card-count">{{ counts.servicos }} itens</div>
@@ -57,7 +57,7 @@
         <div class="summary-card">
           <div class="card-header">
             <h3>Insumos</h3>
-            <i class="fas fa-tools"></i>
+            <i class="fa-solid fa-screwdriver-wrench"></i>
           </div>
           <div class="card-value">{{ formatCurrency(totals.insumos) }}</div>
           <div class="card-count">{{ counts.insumos }} itens</div>
@@ -66,7 +66,7 @@
         <div class="summary-card" v-show="incluirOpcionais">
           <div class="card-header">
             <h3>Opcionais</h3>
-            <i class="fas fa-plus-circle"></i>
+            <i class="fa-solid fa-circle-plus"></i>
           </div>
           <div class="card-value">{{ formatCurrency(totals.opcionais) }}</div>
           <div class="card-count">{{ counts.opcionais }} itens</div>
@@ -774,3 +774,4 @@ export default {
   }
 }
 </style>
+

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="clientes-page">
     <div class="clientes-header">
       <div class="header-content">
@@ -6,14 +6,14 @@
         <p class="page-subtitle">Gerencie seus clientes</p>
       </div>
       <button class="btn-primary" @click="openCreateModal">
-        <i class="fas fa-plus"></i>
+        <i class="fa-solid fa-plus"></i>
         Novo Cliente
       </button>
     </div>
     
     <div class="search-section">
       <div class="search-box">
-        <i class="fas fa-search"></i>
+        <i class="fa-solid fa-magnifying-glass"></i>
         <input 
           type="text" 
           placeholder="Buscar clientes..." 
@@ -39,17 +39,17 @@
         </div>
         <div class="client-actions">
           <button class="btn-secondary" @click.stop="editClient(client)" title="Editar">
-            <i class="fas fa-edit"></i>
+            <i class="fa-solid fa-pen-to-square"></i>
           </button>
           <button class="btn-danger" @click.stop="deleteClient(client.id)" title="Excluir">
-            <i class="fas fa-trash"></i>
+            <i class="fa-solid fa-trash"></i>
           </button>
         </div>
       </div>
     </div>
     
     <div v-else class="empty-state">
-      <i class="fas fa-users"></i>
+      <i class="fa-solid fa-users"></i>
       <h3>Nenhum cliente encontrado</h3>
       <p>Adicione seu primeiro cliente clicando no botão "Novo Cliente"</p>
     </div>
@@ -60,7 +60,7 @@
         <div class="modal-header">
           <h2>{{ showEditModal ? 'Editar Cliente' : 'Novo Cliente' }}</h2>
           <button class="modal-close" @click="closeModals">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         
@@ -191,7 +191,7 @@
         <div class="modal-header">
           <h2>Detalhes do Cliente</h2>
           <button class="modal-close" @click="closeModals">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         
@@ -253,7 +253,7 @@
         
         <div class="modal-actions">
           <button class="btn-secondary" @click="editClient(viewingClient)">
-            <i class="fas fa-edit"></i>
+            <i class="fa-solid fa-pen-to-square"></i>
             Editar
           </button>
           <button class="btn-primary" @click="closeModals">Fechar</button>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="dashboard-page">
     <div class="dashboard-header">
       <h1>Dashboard</h1>
@@ -8,7 +8,7 @@
     <!-- Stats Cards -->
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-icon"><i class="fa-solid fa-user"></i></div>
         <div class="stat-content">
           <h3>Clientes Cadastrados</h3>
           <span class="stat-number" id="clientesCount">{{ stats.clientes || '--' }}</span>
@@ -16,7 +16,7 @@
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon"><i class="fas fa-box"></i></div>
+        <div class="stat-icon"><i class="fa-solid fa-clipboard"></i></div>
         <div class="stat-content">
           <h3>Produtos/Serviços</h3>
           <span class="stat-number" id="produtosCount">{{ stats.produtos || '--' }}</span>
@@ -24,7 +24,7 @@
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon"><i class="fas fa-file-contract"></i></div>
+        <div class="stat-icon"><i class="fa-solid fa-folder-open"></i></div>
         <div class="stat-content">
           <h3>Total de Propostas</h3>
           <span class="stat-number" id="propostasCount">{{ stats.propostas || '--' }}</span>
@@ -32,7 +32,7 @@
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
+        <div class="stat-icon"><i class="fa-solid fa-dollar-sign"></i></div>
         <div class="stat-content">
           <h3>Valor Total das Propostas</h3>
           <span class="stat-number" id="valorTotal">{{ formatCurrency(stats.valorTotal) || 'R$ --' }}</span>
@@ -45,7 +45,7 @@
       <h2>Propostas por Status</h2>
       <div class="status-grid">
         <div class="status-card status-draft">
-          <div class="status-icon"><i class="fas fa-file-alt"></i></div>
+          <div class="status-icon"><i class="fa-solid fa-file-lines"></i></div>
           <div class="status-content">
             <span class="status-number" id="rascunhoCount">{{ statusCounts.rascunho || '--' }}</span>
             <span class="status-label">Rascunho</span>
@@ -54,7 +54,7 @@
         </div>
 
         <div class="status-card status-open">
-          <div class="status-icon"><i class="fas fa-folder-open"></i></div>
+          <div class="status-icon"><i class="fa-solid fa-folder-open"></i></div>
           <div class="status-content">
             <span class="status-number" id="abertoCount">{{ statusCounts.aberto || '--' }}</span>
             <span class="status-label">Aberto</span>
@@ -63,7 +63,7 @@
         </div>
 
         <div class="status-card status-negotiation">
-          <div class="status-icon"><i class="fas fa-handshake"></i></div>
+          <div class="status-icon"><i class="fa-solid fa-handshake"></i></div>
           <div class="status-content">
             <span class="status-number" id="negociacaoCount">{{ statusCounts.negociacao || '--' }}</span>
             <span class="status-label">Em Negociação</span>
@@ -72,7 +72,7 @@
         </div>
 
         <div class="status-card status-closed">
-          <div class="status-icon"><i class="fas fa-check-circle"></i></div>
+          <div class="status-icon"><i class="fa-solid fa-circle-check"></i></div>
           <div class="status-content">
             <span class="status-number" id="fechadoCount">{{ statusCounts.fechado || '--' }}</span>
             <span class="status-label">Fechado</span>
@@ -81,7 +81,7 @@
         </div>
 
         <div class="status-card status-lost">
-          <div class="status-icon"><i class="fas fa-times-circle"></i></div>
+          <div class="status-icon"><i class="fa-solid fa-circle-xmark"></i></div>
           <div class="status-content">
             <span class="status-number" id="perdemosCount">{{ statusCounts.perdemos || '--' }}</span>
             <span class="status-label">Perdemos</span>
@@ -109,7 +109,7 @@
 
       <div class="activities-content" v-else>
         <div class="empty-state">
-          <i class="fas fa-file-alt"></i>
+          <i class="fa-solid fa-file-lines"></i>
           <p>Nenhuma atividade recente encontrada</p>
         </div>
       </div>
@@ -452,3 +452,4 @@ onMounted(loadDashboardData)
   .activities-section { margin: 0 10px 15px 10px; }
 }
 </style>
+

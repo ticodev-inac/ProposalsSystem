@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="modelos-container">
     <!-- Header -->
     <div class="header-section">
@@ -10,7 +10,7 @@
     <div class="controls-section">
       <div class="search-container">
         <div class="search-box">
-          <i class="fas fa-search"></i>
+          <i class="fa-solid fa-magnifying-glass"></i>
           <input 
             v-model="searchTerm" 
             type="text" 
@@ -22,11 +22,11 @@
             @click="clearSearch" 
             class="clear-btn"
           >
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         <button @click="openCreateModal" class="btn btn-primary">
-          <i class="fas fa-plus"></i>
+          <i class="fa-solid fa-plus"></i>
           Criar Modelo
         </button>
       </div>
@@ -52,21 +52,21 @@
           <p class="model-description">{{ model.description || 'Sem descrição' }}</p>
           <div class="model-stats">
             <span class="stat-item">
-              <i class="fas fa-list"></i>
+              <i class="fa-solid fa-list"></i>
               {{ (model.items || []).length }} itens
             </span>
             <span class="stat-item">
-              <i class="fas fa-tools"></i>
+              <i class="fa-solid fa-screwdriver-wrench"></i>
               {{ (model.insumos || []).length }} insumos
             </span>
             <span class="stat-item">
-              <i class="fas fa-plus-circle"></i>
+              <i class="fa-solid fa-circle-plus"></i>
               {{ (model.opcionais || []).length }} opcionais
             </span>
           </div>
           <div class="model-info">
             <small class="text-muted">
-              <i class="fas fa-calendar"></i>
+              <i class="fa-solid fa-calendar"></i>
               Criado em {{ formatDate(model.created_at) }}
             </small>
           </div>
@@ -78,7 +78,7 @@
             class="btn btn-success btn-sm"
             title="Usar este modelo"
           >
-            <i class="fas fa-play"></i>
+            <i class="fa-solid fa-play"></i>
             Usar
           </button>
           <button 
@@ -86,7 +86,7 @@
             class="btn btn-outline-primary btn-sm"
             title="Editar modelo"
           >
-            <i class="fas fa-edit"></i>
+            <i class="fa-solid fa-pen-to-square"></i>
             Editar
           </button>
           <button 
@@ -94,7 +94,7 @@
             class="btn btn-outline-danger btn-sm"
             title="Excluir modelo"
           >
-            <i class="fas fa-trash"></i>
+            <i class="fa-solid fa-trash"></i>
             Apagar
           </button>
         </div>
@@ -103,18 +103,18 @@
 
     <!-- Estado vazio -->
     <div v-else-if="!loading && filteredModels.length === 0" class="empty-state">
-      <i class="fas fa-file-alt"></i>
+      <i class="fa-solid fa-file-lines"></i>
       <h3>{{ searchTerm ? 'Nenhum modelo encontrado' : 'Nenhum modelo criado ainda' }}</h3>
       <p>{{ searchTerm ? 'Tente ajustar sua busca' : 'Crie seu primeiro modelo para agilizar a criação de propostas' }}</p>
       <button v-if="!searchTerm" @click="openCreateModal" class="btn btn-primary">
-        <i class="fas fa-plus"></i>
+        <i class="fa-solid fa-plus"></i>
         Criar Primeiro Modelo
       </button>
     </div>
 
     <!-- Loading -->
     <div v-if="loading" class="loading-state">
-      <i class="fas fa-spinner fa-spin"></i>
+      <i class="fa-solid fa-spinner fa-spin"></i>
       <p>Carregando modelos...</p>
     </div>
 
@@ -124,7 +124,7 @@
         <div class="modal-header">
           <h4>{{ isEditing ? 'Editar Modelo' : 'Criar Novo Modelo' }}</h4>
           <button @click="closeModal" class="close-btn">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         
@@ -256,13 +256,13 @@
               <div class="section-header">
                 <h5>Itens do Modelo</h5>
                 <button @click="openItemModal" class="btn btn-sm btn-primary">
-                  <i class="fas fa-plus"></i>
+                  <i class="fa-solid fa-plus"></i>
                   Adicionar Item
                 </button>
               </div>
 
               <div v-if="modelForm.items.length === 0" class="empty-section">
-                <i class="fas fa-list"></i>
+                <i class="fa-solid fa-list"></i>
                 <p>Nenhum item adicionado ainda</p>
                 <button @click="openItemModal" class="btn btn-outline-primary">
                   Adicionar Primeiro Item
@@ -286,15 +286,15 @@
                   <div class="item-controls">
                     <div class="quantity-switch">
                       <button @click="decrementItemQuantity(index)" class="qty-btn">
-                        <i class="fas fa-minus"></i>
+                        <i class="fa-solid fa-minus"></i>
                       </button>
                       <span class="qty-display">{{ item.quantity || 1 }}</span>
                       <button @click="incrementItemQuantity(index)" class="qty-btn">
-                        <i class="fas fa-plus"></i>
+                        <i class="fa-solid fa-plus"></i>
                       </button>
                     </div>
                     <button @click="removeItem(index)" class="btn-delete">
-                      <i class="fas fa-trash"></i>
+                      <i class="fa-solid fa-trash"></i>
                     </button>
                   </div>
                 </div>
@@ -306,13 +306,13 @@
               <div class="section-header">
                 <h5>Insumos do Modelo</h5>
                 <button @click="openSupplyModal" class="btn btn-sm btn-primary">
-                  <i class="fas fa-plus"></i>
+                  <i class="fa-solid fa-plus"></i>
                   Adicionar Insumo
                 </button>
               </div>
 
               <div v-if="modelForm.insumos.length === 0" class="empty-section">
-                <i class="fas fa-tools"></i>
+                <i class="fa-solid fa-screwdriver-wrench"></i>
                 <p>Nenhum insumo adicionado ainda</p>
                 <button @click="openSupplyModal" class="btn btn-outline-primary">
                   Adicionar Primeiro Insumo
@@ -336,15 +336,15 @@
                   <div class="item-controls">
                     <div class="quantity-switch">
                       <button @click="decrementSupplyQuantity(index)" class="qty-btn">
-                        <i class="fas fa-minus"></i>
+                        <i class="fa-solid fa-minus"></i>
                       </button>
                       <span class="qty-display">{{ insumo.quantity || 1 }}</span>
                       <button @click="incrementSupplyQuantity(index)" class="qty-btn">
-                        <i class="fas fa-plus"></i>
+                        <i class="fa-solid fa-plus"></i>
                       </button>
                     </div>
                     <button @click="removeSupply(index)" class="btn-delete">
-                      <i class="fas fa-trash"></i>
+                      <i class="fa-solid fa-trash"></i>
                     </button>
                   </div>
                 </div>
@@ -356,13 +356,13 @@
               <div class="section-header">
                 <h5>Opcionais do Modelo</h5>
                 <button @click="openOptionalModal" class="btn btn-sm btn-primary">
-                  <i class="fas fa-plus"></i>
+                  <i class="fa-solid fa-plus"></i>
                   Adicionar Opcional
                 </button>
               </div>
 
               <div v-if="modelForm.opcionais.length === 0" class="empty-section">
-                <i class="fas fa-plus-circle"></i>
+                <i class="fa-solid fa-circle-plus"></i>
                 <p>Nenhum opcional adicionado ainda</p>
                 <button @click="openOptionalModal" class="btn btn-outline-primary">
                   Adicionar Primeiro Opcional
@@ -386,15 +386,15 @@
                   <div class="item-controls">
                     <div class="quantity-switch">
                       <button @click="decrementOptionalQuantity(index)" class="qty-btn">
-                        <i class="fas fa-minus"></i>
+                        <i class="fa-solid fa-minus"></i>
                       </button>
                       <span class="qty-display">{{ opcional.quantity || 1 }}</span>
                       <button @click="incrementOptionalQuantity(index)" class="qty-btn">
-                        <i class="fas fa-plus"></i>
+                        <i class="fa-solid fa-plus"></i>
                       </button>
                     </div>
                     <button @click="removeOptional(index)" class="btn-delete">
-                      <i class="fas fa-trash"></i>
+                      <i class="fa-solid fa-trash"></i>
                     </button>
                   </div>
                 </div>
@@ -406,7 +406,7 @@
         <div class="modal-footer">
           <button @click="closeModal" class="btn btn-secondary">Cancelar</button>
           <button @click="saveModel" class="btn btn-primary" :disabled="!modelForm.name || saving">
-            <i v-if="saving" class="fas fa-spinner fa-spin"></i>
+            <i v-if="saving" class="fa-solid fa-spinner fa-spin"></i>
             {{ isEditing ? 'Salvar Alterações' : 'Criar Modelo' }}
           </button>
         </div>
@@ -419,23 +419,23 @@
         <div class="modal-header">
           <h5>{{ editingItemIndex !== null ? 'Editar Item' : 'Selecionar Itens' }}</h5>
           <button @click="closeItemModal" class="close-btn">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         <div class="modal-body">
           <!-- Contador de itens selecionados -->
           <div v-if="selectedItems.length > 0" class="selected-items-counter">
-            <i class="fas fa-check-circle"></i>
+            <i class="fa-solid fa-circle-check"></i>
             <span>{{ selectedItems.length }} item(s) selecionado(s)</span>
             <button @click="clearSelectedItems" class="btn-clear-selection">
-              <i class="fas fa-times"></i> Limpar seleção
+              <i class="fa-solid fa-times"></i> Limpar seleção
             </button>
           </div>
 
           <!-- Busca e filtros -->
           <div class="search-section">
             <div class="search-box">
-              <i class="fas fa-search"></i>
+              <i class="fa-solid fa-magnifying-glass"></i>
               <input 
                 v-model="itemSearchTerm" 
                 type="text" 
@@ -495,20 +495,20 @@
                 </div>
               </div>
               <div class="item-select-btn">
-                <i :class="isItemSelected(item) ? 'fas fa-check-circle text-success' : 'fas fa-plus'"></i>
+                <i :class="isItemSelected(item) ? 'fas fa-circle-check text-success' : 'fas fa-plus'"></i>
               </div>
             </div>
           </div>
 
           <!-- Estado vazio -->
           <div v-else-if="!loadingItems" class="empty-state">
-            <i class="fas fa-search"></i>
+            <i class="fa-solid fa-magnifying-glass"></i>
             <p>{{ availableItems.length === 0 ? 'Carregando itens...' : (itemSearchTerm || selectedItemType || selectedItemCategory ? 'Nenhum item encontrado com os filtros aplicados' : 'Todos os itens disponíveis estão listados acima') }}</p>
           </div>
 
           <!-- Loading -->
           <div v-if="loadingItems" class="loading-state">
-            <i class="fas fa-spinner fa-spin"></i>
+            <i class="fa-solid fa-spinner fa-spin"></i>
             <p>Carregando itens...</p>
           </div>
         </div>
@@ -519,7 +519,7 @@
             class="btn btn-primary"
             :disabled="selectedItems.length === 0"
           >
-            <i class="fas fa-save"></i>
+            <i class="fa-solid fa-floppy-disk"></i>
             Salvar ({{ selectedItems.length }})
           </button>
         </div>
@@ -532,23 +532,23 @@
         <div class="modal-header">
           <h5>{{ editingSupplyIndex !== null ? 'Editar Insumo' : 'Selecionar Insumos' }}</h5>
           <button @click="closeSupplyModal" class="close-btn">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         <div class="modal-body">
           <!-- Contador de insumos selecionados -->
           <div v-if="selectedSupplies.length > 0" class="selected-items-counter">
-            <i class="fas fa-check-circle"></i>
+            <i class="fa-solid fa-circle-check"></i>
             <span>{{ selectedSupplies.length }} insumo(s) selecionado(s)</span>
             <button @click="clearSelectedSupplies" class="btn-clear-selection">
-              <i class="fas fa-times"></i> Limpar seleção
+              <i class="fa-solid fa-times"></i> Limpar seleção
             </button>
           </div>
 
           <!-- Busca e filtros -->
           <div class="search-section">
             <div class="search-box">
-              <i class="fas fa-search"></i>
+              <i class="fa-solid fa-magnifying-glass"></i>
               <input 
                 v-model="supplySearchTerm" 
                 type="text" 
@@ -595,20 +595,20 @@
                 </div>
               </div>
               <div class="item-select-btn">
-                <i :class="isSupplySelected(supply) ? 'fas fa-check-circle text-success' : 'fas fa-plus'"></i>
+                <i :class="isSupplySelected(supply) ? 'fas fa-circle-check text-success' : 'fas fa-plus'"></i>
               </div>
             </div>
           </div>
 
           <!-- Estado vazio -->
           <div v-else-if="!loadingSupplies" class="empty-state">
-            <i class="fas fa-search"></i>
+            <i class="fa-solid fa-magnifying-glass"></i>
             <p>{{ availableSupplies.length === 0 ? 'Carregando insumos...' : (supplySearchTerm || selectedSupplyType ? 'Nenhum insumo encontrado com os filtros aplicados' : 'Todos os insumos disponíveis estão listados acima') }}</p>
           </div>
 
           <!-- Loading -->
           <div v-if="loadingSupplies" class="loading-state">
-            <i class="fas fa-spinner fa-spin"></i>
+            <i class="fa-solid fa-spinner fa-spin"></i>
             <p>Carregando insumos...</p>
           </div>
         </div>
@@ -619,7 +619,7 @@
             class="btn btn-primary"
             :disabled="selectedSupplies.length === 0"
           >
-            <i class="fas fa-save"></i>
+            <i class="fa-solid fa-floppy-disk"></i>
             Salvar ({{ selectedSupplies.length }})
           </button>
         </div>
@@ -632,23 +632,23 @@
         <div class="modal-header">
           <h5>{{ editingOptionalIndex !== null ? 'Editar Opcional' : 'Selecionar Opcionais' }}</h5>
           <button @click="closeOptionalModal" class="close-btn">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         <div class="modal-body">
           <!-- Contador de opcionais selecionados -->
           <div v-if="selectedOptionals.length > 0" class="selected-items-counter">
-            <i class="fas fa-check-circle"></i>
+            <i class="fa-solid fa-circle-check"></i>
             <span>{{ selectedOptionals.length }} opcional(is) selecionado(s)</span>
             <button @click="clearSelectedOptionals" class="btn-clear-selection">
-              <i class="fas fa-times"></i> Limpar seleção
+              <i class="fa-solid fa-times"></i> Limpar seleção
             </button>
           </div>
 
           <!-- Busca e filtros -->
           <div class="search-section">
             <div class="search-box">
-              <i class="fas fa-search"></i>
+              <i class="fa-solid fa-magnifying-glass"></i>
               <input 
                 v-model="optionalSearchTerm" 
                 type="text" 
@@ -708,20 +708,20 @@
                 </div>
               </div>
               <div class="item-select-btn">
-                <i :class="isOptionalSelected(optional) ? 'fas fa-check-circle text-success' : 'fas fa-plus'"></i>
+                <i :class="isOptionalSelected(optional) ? 'fas fa-circle-check text-success' : 'fas fa-plus'"></i>
               </div>
             </div>
           </div>
 
           <!-- Estado vazio -->
           <div v-else-if="!loadingOptionals" class="empty-state">
-            <i class="fas fa-search"></i>
+            <i class="fa-solid fa-magnifying-glass"></i>
             <p>{{ availableOptionals.length === 0 ? 'Carregando opcionais...' : (optionalSearchTerm || selectedOptionalType || selectedOptionalCategory ? 'Nenhum opcional encontrado com os filtros aplicados' : 'Todos os opcionais disponíveis estão listados acima') }}</p>
           </div>
 
           <!-- Loading -->
           <div v-if="loadingOptionals" class="loading-state">
-            <i class="fas fa-spinner fa-spin"></i>
+            <i class="fa-solid fa-spinner fa-spin"></i>
             <p>Carregando opcionais...</p>
           </div>
         </div>
@@ -732,7 +732,7 @@
             class="btn btn-primary"
             :disabled="selectedOptionals.length === 0"
           >
-            <i class="fas fa-save"></i>
+            <i class="fa-solid fa-floppy-disk"></i>
             Salvar ({{ selectedOptionals.length }})
           </button>
         </div>
@@ -850,10 +850,10 @@ export default {
 
     // Configuração das abas
     const tabs = [
-      { id: 'basic', label: 'Dados Básicos', icon: 'fas fa-info-circle' },
+      { id: 'basic', label: 'Dados Básicos', icon: 'fas fa-circle-info' },
       { id: 'items', label: 'Itens', icon: 'fas fa-list' },
-      { id: 'supplies', label: 'Insumos', icon: 'fas fa-tools' },
-      { id: 'optionals', label: 'Opcionais', icon: 'fas fa-plus-circle' }
+      { id: 'supplies', label: 'Insumos', icon: 'fas fa-screwdriver-wrench' },
+      { id: 'optionals', label: 'Opcionais', icon: 'fas fa-circle-plus' }
     ]
 
     // Configurar os serviços

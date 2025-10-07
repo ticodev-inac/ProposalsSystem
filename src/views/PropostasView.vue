@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="propostas-page">
     <div class="propostas-header">
       <div class="header-content">
@@ -6,14 +6,14 @@
         <p class="page-subtitle">Gerencie suas propostas comerciais</p>
       </div>
       <button class="btn-primary" @click="openCreateModal">
-        <i class="fas fa-plus"></i>
+        <i class="fa-solid fa-plus"></i>
         Nova Proposta
       </button>
     </div>
     
     <div class="search-section">
       <div class="search-box">
-        <i class="fas fa-search"></i>
+        <i class="fa-solid fa-magnifying-glass"></i>
         <input 
           type="text" 
           placeholder="Buscar propostas por número, cliente, nome, status..." 
@@ -26,7 +26,7 @@
           v-if="searchTerm"
           title="Limpar busca"
         >
-          <i class="fas fa-times"></i>
+          <i class="fa-solid fa-times"></i>
         </button>
       </div>
       <div class="search-results-count" v-if="searchTerm">
@@ -47,14 +47,14 @@
           <h3 class="event-title">
             {{ proposal.title || '—' }}
             <button class="inline-icon-btn" @click.stop="editProposal(proposal)" title="Editar título">
-              <i class="fas fa-pen"></i>
+              <i class="fa-solid fa-pen"></i>
             </button>
           </h3>
           <div class="top-right">
             <div class="proposal-number-inline" @click.stop="editProposal(proposal)" title="Editar proposta">
               <span class="prefix">Nº</span>
               <span class="number">{{ proposal.proposal_number || proposal.id }}</span>
-              <i class="fas fa-pen small"></i>
+              <i class="fa-solid fa-pen small"></i>
             </div>
             <div class="status-dropdown-container" @click.stop>
               <select 
@@ -76,38 +76,38 @@
         <div class="proposal-info">
           <!-- Cliente -->
           <h3 class="client-name">
-            <i class="fas fa-building"></i>
+            <i class="fa-solid fa-building"></i>
             {{ proposal.client_name || 'Cliente não informado' }}
           </h3>
 
           <!-- Lista de detalhes -->
           <div class="event-details">
             <div class="detail-item">
-              <i class="fas fa-calendar-plus"></i>
+              <i class="fa-solid fa-calendar-plus"></i>
               <span>Criada em {{ formatDate(proposal.created_at) }}</span>
             </div>
 
             <div class="detail-item" v-if="proposal.participants_count">
-              <i class="fas fa-users"></i>
+              <i class="fa-solid fa-users"></i>
               <span>{{ proposal.participants_count }} participantes</span>
             </div>
 
             <div class="detail-item" v-if="proposal.start_date && proposal.end_date">
-              <i class="fas fa-clock"></i>
+              <i class="fa-solid fa-clock"></i>
               <span>{{ formatDateRange(proposal.start_date, proposal.end_date) }}</span>
             </div>
             <div class="detail-item" v-else-if="proposal.start_date">
-              <i class="fas fa-clock"></i>
+              <i class="fa-solid fa-clock"></i>
               <span>{{ formatDate(proposal.start_date) }}</span>
             </div>
 
             <div class="detail-item" v-if="proposal.location">
-              <i class="fas fa-map-marker-alt"></i>
+              <i class="fa-solid fa-location-dot"></i>
               <span>{{ proposal.location }}</span>
             </div>
 
             <div class="detail-item" v-if="proposal.event_type">
-              <i class="fas fa-briefcase"></i>
+              <i class="fa-solid fa-briefcase"></i>
               <span>{{ proposal.event_type }}</span>
             </div>
           </div>
@@ -139,7 +139,7 @@
             :title="isGenerating ? 'Gerando PDF...' : 'Exportar PDF'"
           >
             <i v-if="!isGenerating" class="icon-pdf"></i>
-            <i v-else class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fa-solid fa-spinner fa-spin"></i>
             <span>{{ isGenerating ? 'Gerando...' : 'PDF' }}</span>
           </button>
           <button 
@@ -163,7 +163,7 @@
     </div>
     
     <div v-else class="empty-state">
-      <i class="fas fa-file-contract"></i>
+      <i class="fa-solid fa-file-contract"></i>
       <h3>Nenhuma proposta encontrada</h3>
       <p>Crie sua primeira proposta clicando no botão "Nova Proposta"</p>
     </div>
@@ -174,23 +174,23 @@
         <div class="modal-header">
           <h5>{{ editingItemIndex !== null ? 'Editar Item' : 'Selecionar Itens' }}</h5>
           <button @click="closeItemModal" class="close-btn">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         <div class="modal-body">
           <!-- Contador de itens selecionados -->
           <div v-if="selectedItems.length > 0" class="selected-items-counter">
-            <i class="fas fa-check-circle"></i>
+            <i class="fa-solid fa-circle-check"></i>
             <span>{{ selectedItems.length }} item(s) selecionado(s)</span>
             <button @click="clearSelectedItems" class="btn-clear-selection">
-              <i class="fas fa-times"></i> Limpar seleção
+              <i class="fa-solid fa-times"></i> Limpar seleção
             </button>
           </div>
 
           <!-- Busca e filtros -->
           <div class="search-section">
             <div class="search-box">
-              <i class="fas fa-search"></i>
+              <i class="fa-solid fa-magnifying-glass"></i>
               <input 
                 v-model="itemSearchTerm" 
                 type="text" 
@@ -250,20 +250,20 @@
                 </div>
               </div>
               <div class="item-select-btn">
-                <i :class="isItemSelected(item) ? 'fas fa-check-circle text-success' : 'fas fa-plus'"></i>
+                <i :class="isItemSelected(item) ? 'fas fa-circle-check text-success' : 'fas fa-plus'"></i>
               </div>
             </div>
           </div>
 
           <!-- Estado vazio -->
           <div v-else-if="!loadingItems" class="empty-state">
-            <i class="fas fa-search"></i>
+            <i class="fa-solid fa-magnifying-glass"></i>
             <p>{{ availableItems.length === 0 ? 'Carregando itens...' : (itemSearchTerm || selectedItemType || selectedItemCategory ? 'Nenhum item encontrado com os filtros aplicados' : 'Todos os itens disponíveis estão listados acima') }}</p>
           </div>
 
           <!-- Loading -->
           <div v-if="loadingItems" class="loading-state">
-            <i class="fas fa-spinner fa-spin"></i>
+            <i class="fa-solid fa-spinner fa-spin"></i>
             <p>Carregando itens...</p>
           </div>
         </div>
@@ -274,7 +274,7 @@
             class="btn btn-primary"
             :disabled="selectedItems.length === 0"
           >
-            <i class="fas fa-save"></i>
+            <i class="fa-solid fa-floppy-disk"></i>
             Salvar ({{ selectedItems.length }})
           </button>
         </div>
@@ -287,23 +287,23 @@
         <div class="modal-header">
           <h5>{{ editingSupplyIndex !== null ? 'Editar Insumo' : 'Selecionar Insumos' }}</h5>
           <button @click="closeSupplyModal" class="close-btn">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         <div class="modal-body">
           <!-- Contador de insumos selecionados -->
           <div v-if="selectedSupplies.length > 0" class="selected-items-counter">
-            <i class="fas fa-check-circle"></i>
+            <i class="fa-solid fa-circle-check"></i>
             <span>{{ selectedSupplies.length }} insumo(s) selecionado(s)</span>
             <button @click="clearSelectedSupplies" class="btn-clear-selection">
-              <i class="fas fa-times"></i> Limpar seleção
+              <i class="fa-solid fa-times"></i> Limpar seleção
             </button>
           </div>
 
           <!-- Busca e filtros -->
           <div class="search-section">
             <div class="search-box">
-              <i class="fas fa-search"></i>
+              <i class="fa-solid fa-magnifying-glass"></i>
               <input 
                 v-model="supplySearchTerm" 
                 type="text" 
@@ -350,14 +350,14 @@
             </div>
           </div>
           <div class="item-select-btn">
-            <i :class="isSupplySelected(supply) ? 'fas fa-check-circle text-success' : 'fas fa-plus'"></i>
+            <i :class="isSupplySelected(supply) ? 'fas fa-circle-check text-success' : 'fas fa-plus'"></i>
           </div>
         </div>
       </div>
 
       <!-- Estado vazio -->
       <div v-else-if="!loadingSupplies" class="empty-state">
-        <i class="fas fa-search"></i>
+        <i class="fa-solid fa-magnifying-glass"></i>
         <p>
           {{ availableSupplies.length === 0 
             ? 'Nenhum insumo disponível' 
@@ -370,7 +370,7 @@
 
           <!-- Loading -->
           <div v-if="loadingSupplies" class="loading-state">
-            <i class="fas fa-spinner fa-spin"></i>
+            <i class="fa-solid fa-spinner fa-spin"></i>
             <p>Carregando insumos...</p>
           </div>
         </div>
@@ -381,7 +381,7 @@
             class="btn btn-primary"
             :disabled="selectedSupplies.length === 0"
           >
-            <i class="fas fa-save"></i>
+            <i class="fa-solid fa-floppy-disk"></i>
             Salvar ({{ selectedSupplies.length }})
           </button>
         </div>
@@ -394,23 +394,23 @@
         <div class="modal-header">
           <h5>{{ editingOptionalIndex !== null ? 'Editar Opcional' : 'Selecionar Opcionais' }}</h5>
           <button @click="closeOptionalModal" class="close-btn">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         <div class="modal-body">
           <!-- Contador de opcionais selecionados -->
           <div v-if="selectedOptionals.length > 0" class="selected-items-counter">
-            <i class="fas fa-check-circle"></i>
+            <i class="fa-solid fa-circle-check"></i>
             <span>{{ selectedOptionals.length }} opcional(is) selecionado(s)</span>
             <button @click="clearSelectedOptionals" class="btn-clear-selection">
-              <i class="fas fa-times"></i> Limpar seleção
+              <i class="fa-solid fa-times"></i> Limpar seleção
             </button>
           </div>
 
           <!-- Busca e filtros -->
           <div class="search-section">
             <div class="search-box">
-              <i class="fas fa-search"></i>
+              <i class="fa-solid fa-magnifying-glass"></i>
               <input 
                 v-model="optionalSearchTerm" 
                 type="text" 
@@ -470,20 +470,20 @@
                 </div>
               </div>
               <div class="item-select-btn">
-                <i :class="isOptionalSelected(optional) ? 'fas fa-check-circle text-success' : 'fas fa-plus'"></i>
+                <i :class="isOptionalSelected(optional) ? 'fas fa-circle-check text-success' : 'fas fa-plus'"></i>
               </div>
             </div>
           </div>
 
           <!-- Estado vazio -->
           <div v-else-if="!loadingOptionals" class="empty-state">
-            <i class="fas fa-search"></i>
+            <i class="fa-solid fa-magnifying-glass"></i>
             <p>{{ availableOptionals.length === 0 ? 'Carregando opcionais...' : (optionalSearchTerm || selectedOptionalType || selectedOptionalCategory ? 'Nenhum opcional encontrado com os filtros aplicados' : 'Todos os opcionais disponíveis estão listados acima') }}</p>
           </div>
 
           <!-- Loading -->
           <div v-if="loadingOptionals" class="loading-state">
-            <i class="fas fa-spinner fa-spin"></i>
+            <i class="fa-solid fa-spinner fa-spin"></i>
             <p>Carregando opcionais...</p>
           </div>
         </div>
@@ -494,7 +494,7 @@
             class="btn btn-primary"
             :disabled="selectedOptionals.length === 0"
           >
-            <i class="fas fa-save"></i>
+            <i class="fa-solid fa-floppy-disk"></i>
             Salvar ({{ selectedOptionals.length }})
           </button>
         </div>
@@ -507,7 +507,7 @@
         <div class="modal-header">
           <h2>{{ isEditing ? 'Editar Proposta' : 'Criar Nova Proposta' }}</h2>
           <button class="modal-close" @click="closeModal">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
 
@@ -545,12 +545,12 @@
                       @click="toggleClientDropdown"
                     >
                     <button type="button" class="dropdown-arrow" @click="toggleClientDropdown">
-                      <i class="fas fa-chevron-down"></i>
+                      <i class="fa-solid fa-chevron-down"></i>
                     </button>
                   </div>
                   <div v-if="showClientDropdown" class="client-dropdown-menu">
                     <div class="client-search">
-                      <i class="fas fa-search"></i>
+                      <i class="fa-solid fa-magnifying-glass"></i>
                       <input 
                         type="text" 
                         placeholder="Buscar cliente..." 
@@ -670,13 +670,13 @@
             <div class="section-header">
               <h5>Itens da Proposta</h5>
               <button @click="openItemModal" class="btn btn-sm btn-primary">
-                <i class="fas fa-plus"></i>
+                <i class="fa-solid fa-plus"></i>
                 Adicionar Item
               </button>
             </div>
 
             <div v-if="form.items.length === 0" class="empty-section">
-              <i class="fas fa-list"></i>
+              <i class="fa-solid fa-list"></i>
               <p>Nenhum item adicionado ainda</p>
               <button @click="openItemModal" class="btn btn-outline-primary">
                 Adicionar Primeiro Item
@@ -727,7 +727,7 @@
       @click="item.valor_unitario = Number(item.preco_base); recalculateTotals()"
       title="Reverter para o preço do cadastro"
     >
-      <i class="fas fa-undo"></i>
+      <i class="fa-solid fa-rotate-left"></i>
     </button>
   </div>
 </div>
@@ -739,7 +739,7 @@
   <div class="item-controls">
     <div class="quantity-switch">
       <button @click="decrementItemQuantity(index)" class="qty-btn">
-        <i class="fas fa-minus"></i>
+        <i class="fa-solid fa-minus"></i>
       </button>
 
       <!-- quantidade editável -->
@@ -752,11 +752,11 @@
       />
 
       <button @click="incrementItemQuantity(index)" class="qty-btn">
-        <i class="fas fa-plus"></i>
+        <i class="fa-solid fa-plus"></i>
       </button>
     </div>
     <button @click="removeItem(index)" class="btn-delete">
-      <i class="fas fa-trash"></i>
+      <i class="fa-solid fa-trash"></i>
     </button>
   </div>
 </div>
@@ -770,13 +770,13 @@
             <div class="section-header">
               <h5>Insumos da Proposta</h5>
               <button @click="openSupplyModal" class="btn btn-sm btn-primary">
-                <i class="fas fa-plus"></i>
+                <i class="fa-solid fa-plus"></i>
                 Adicionar Insumo
               </button>
             </div>
 
             <div v-if="form.insumos.length === 0" class="empty-section">
-              <i class="fas fa-tools"></i>
+              <i class="fa-solid fa-screwdriver-wrench"></i>
               <p>Nenhum insumo adicionado ainda</p>
               <button @click="openSupplyModal" class="btn btn-outline-primary">
                 Adicionar Primeiro Insumo
@@ -820,7 +820,7 @@
       @click="insumo.valor_unitario = Number(insumo.preco_base); recalculateTotals()"
       title="Reverter para o preço do cadastro"
     >
-      <i class="fas fa-undo"></i>
+      <i class="fa-solid fa-rotate-left"></i>
     </button>
   </div>
 </div>
@@ -832,7 +832,7 @@
   <div class="item-controls">
     <div class="quantity-switch">
       <button @click="decrementSupplyQuantity(index)" class="qty-btn">
-        <i class="fas fa-minus"></i>
+        <i class="fa-solid fa-minus"></i>
       </button>
 
       <!-- quantidade editável -->
@@ -845,11 +845,11 @@
       />
 
       <button @click="incrementSupplyQuantity(index)" class="qty-btn">
-        <i class="fas fa-plus"></i>
+        <i class="fa-solid fa-plus"></i>
       </button>
     </div>
     <button @click="removeSupply(index)" class="btn-delete">
-      <i class="fas fa-trash"></i>
+      <i class="fa-solid fa-trash"></i>
     </button>
   </div>
 </div>
@@ -863,13 +863,13 @@
             <div class="section-header">
               <h5>Opcionais da Proposta</h5>
               <button @click="openOptionalModal" class="btn btn-sm btn-primary">
-                <i class="fas fa-plus"></i>
+                <i class="fa-solid fa-plus"></i>
                 Adicionar Opcional
               </button>
             </div>
 
             <div v-if="form.opcionais.length === 0" class="empty-section">
-              <i class="fas fa-plus-circle"></i>
+              <i class="fa-solid fa-circle-plus"></i>
               <p>Nenhum opcional adicionado ainda</p>
               <button @click="openOptionalModal" class="btn btn-outline-primary">
                 Adicionar Primeiro Opcional
@@ -913,7 +913,7 @@
       @click="opcional.valor_unitario = Number(opcional.preco_base); recalculateTotals()"
       title="Reverter para o preço do cadastro"
     >
-      <i class="fas fa-undo"></i>
+      <i class="fa-solid fa-rotate-left"></i>
     </button>
   </div>
 </div>
@@ -925,7 +925,7 @@
   <div class="item-controls">
     <div class="quantity-switch">
       <button @click="decrementOptionalQuantity(index)" class="qty-btn">
-        <i class="fas fa-minus"></i>
+        <i class="fa-solid fa-minus"></i>
       </button>
 
       <!-- quantidade editável -->
@@ -938,11 +938,11 @@
       />
 
       <button @click="incrementOptionalQuantity(index)" class="qty-btn">
-        <i class="fas fa-plus"></i>
+        <i class="fa-solid fa-plus"></i>
       </button>
     </div>
     <button @click="removeOptional(index)" class="btn-delete">
-      <i class="fas fa-trash"></i>
+      <i class="fa-solid fa-trash"></i>
     </button>
   </div>
 </div>
@@ -1119,7 +1119,7 @@
             </div>
 
             <div v-else class="empty-section">
-              <i class="fas fa-file-contract"></i>
+              <i class="fa-solid fa-file-contract"></i>
               <p>Nenhuma condição configurada</p>
               <p class="help-text">Configure as condições gerais na tela de <strong>Configurações Fixas</strong></p>
             </div>
@@ -1143,7 +1143,7 @@
             </div>
 
             <div v-else class="empty-section">
-              <i class="fas fa-handshake"></i>
+              <i class="fa-solid fa-handshake"></i>
               <p>Nenhuma política configurada</p>
               <p class="help-text">Configure as políticas de contratação na tela de <strong>Configurações Fixas</strong></p>
             </div>
@@ -1184,22 +1184,22 @@
                   
                   <div class="supplier-info">
                     <div class="info-row" v-if="selectedSupplier.address">
-                      <i class="fas fa-map-marker-alt"></i>
+                      <i class="fa-solid fa-location-dot"></i>
                       <span>{{ selectedSupplier.address }}</span>
                     </div>
                     
                     <div class="info-row" v-if="selectedSupplier.phone">
-                      <i class="fas fa-phone"></i>
+                      <i class="fa-solid fa-phone"></i>
                       <span>{{ formatPhone(selectedSupplier.phone) }}</span>
                     </div>
                     
                     <div class="info-row" v-if="selectedSupplier.email">
-                      <i class="fas fa-envelope"></i>
+                      <i class="fa-solid fa-envelope"></i>
                       <span>{{ selectedSupplier.email }}</span>
                     </div>
                     
                     <div class="info-row" v-if="selectedSupplier.contact_person">
-                      <i class="fas fa-user"></i>
+                      <i class="fa-solid fa-user"></i>
                       <span>{{ selectedSupplier.contact_person }}</span>
                     </div>
                   </div>
@@ -1207,7 +1207,7 @@
               </div>
 
               <div v-if="!selectedSupplier" class="supplier-help">
-                <i class="fas fa-info-circle"></i>
+                <i class="fa-solid fa-circle-info"></i>
                 <p>Selecione um fornecedor para finalizar a proposta. Esta será a última etapa do processo.</p>
               </div>
             </div>
@@ -1217,7 +1217,7 @@
         <div class="modal-footer">
           <button @click="closeModal" class="btn btn-secondary">Cancelar</button>
           <button @click="saveProposal" class="btn btn-primary" :disabled="!form.client_name || !form.title || saving">
-            <i v-if="saving" class="fas fa-spinner fa-spin"></i>
+            <i v-if="saving" class="fa-solid fa-spinner fa-spin"></i>
             {{ isEditing ? 'Salvar Alterações' : 'Criar Proposta' }}
           </button>
         </div>
@@ -1279,10 +1279,10 @@ export default {
     // Modal tabs
     const activeTab = ref('basic')
     const tabs = ref([
-      { id: 'basic', label: 'Dados Básicos', icon: 'fas fa-info-circle' },
+      { id: 'basic', label: 'Dados Básicos', icon: 'fas fa-circle-info' },
       { id: 'items', label: 'Itens', icon: 'fas fa-list' },
-      { id: 'supplies', label: 'Insumos', icon: 'fas fa-tools' },
-      { id: 'optionals', label: 'Opcionais', icon: 'fas fa-plus-circle' },
+      { id: 'supplies', label: 'Insumos', icon: 'fas fa-screwdriver-wrench' },
+      { id: 'optionals', label: 'Opcionais', icon: 'fas fa-circle-plus' },
       { id: 'total', label: 'Total Geral', icon: 'fas fa-calculator' },
       { id: 'conditions', label: 'Condições Gerais', icon: 'fas fa-file-contract' },
       { id: 'policies', label: 'Política Contratação', icon: 'fas fa-handshake' },
