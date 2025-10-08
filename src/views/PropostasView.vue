@@ -149,7 +149,7 @@
                         <i v-else class="fa-solid fa-spinner fa-spin"></i>
                         <span>{{ isGenerating ? 'Gerando...' : 'PDF' }}</span>
                     </button>
-                   
+
                     <button
                         @click.stop="deleteProposal(proposal.id)"
                         class="action-btn delete-btn"
@@ -237,8 +237,12 @@
                             v-for="item in filteredAvailableItems"
                             :key="`${item.type}-${item.id}`"
                             class="item-selection-card"
-                            :class="{ selected: isItemSelected(item) }"
-                            @click="toggleItemSelection(item)"
+                            :class="{
+                                selected: isItemSelected(item) || isItemAlreadyAdded(item),
+                                disabled: isItemAlreadyAdded(item),
+                            }"
+                            @click="!isItemAlreadyAdded(item) && toggleItemSelection(item)"
+                            :title="isItemAlreadyAdded(item) ? 'Já adicionado na proposta' : ''"
                         >
                             <div class="item-info">
                                 <h6>{{ item.name }}</h6>
@@ -262,7 +266,7 @@
                             <div class="item-select-btn">
                                 <i
                                     :class="
-                                        isItemSelected(item)
+                                        isItemSelected(item) || isItemAlreadyAdded(item)
                                             ? 'fas fa-circle-check text-success'
                                             : 'fas fa-plus'
                                     "
@@ -366,8 +370,12 @@
                             v-for="supply in filteredAvailableSupplies"
                             :key="supply.id"
                             class="item-selection-card"
-                            :class="{ selected: isSupplySelected(supply) }"
-                            @click="toggleSupplySelection(supply)"
+                            :class="{
+                                selected: isSupplySelected(supply) || isSupplyAlreadyAdded(supply),
+                                disabled: isSupplyAlreadyAdded(supply),
+                            }"
+                            @click="!isSupplyAlreadyAdded(supply) && toggleSupplySelection(supply)"
+                            :title="isSupplyAlreadyAdded(supply) ? 'Já adicionado na proposta' : ''"
                         >
                             <div class="item-info">
                                 <h6>{{ supply.name || 'Nome não informado' }}</h6>
@@ -387,7 +395,7 @@
                             <div class="item-select-btn">
                                 <i
                                     :class="
-                                        isSupplySelected(supply)
+                                        isSupplySelected(supply) || isSupplyAlreadyAdded(supply)
                                             ? 'fas fa-circle-check text-success'
                                             : 'fas fa-plus'
                                     "
@@ -505,8 +513,19 @@
                             v-for="optional in filteredAvailableOptionals"
                             :key="`${optional.type}-${optional.id}`"
                             class="item-selection-card"
-                            :class="{ selected: isOptionalSelected(optional) }"
-                            @click="toggleOptionalSelection(optional)"
+                            :class="{
+                                selected:
+                                    isOptionalSelected(optional) ||
+                                    isOptionalAlreadyAdded(optional),
+                                disabled: isOptionalAlreadyAdded(optional),
+                            }"
+                            @click="
+                                !isOptionalAlreadyAdded(optional) &&
+                                toggleOptionalSelection(optional)
+                            "
+                            :title="
+                                isOptionalAlreadyAdded(optional) ? 'Já adicionado na proposta' : ''
+                            "
                         >
                             <div class="item-info">
                                 <h6>{{ optional.name }}</h6>
@@ -536,7 +555,8 @@
                             <div class="item-select-btn">
                                 <i
                                     :class="
-                                        isOptionalSelected(optional)
+                                        isOptionalSelected(optional) ||
+                                        isOptionalAlreadyAdded(optional)
                                             ? 'fas fa-circle-check text-success'
                                             : 'fas fa-plus'
                                     "
@@ -2457,8 +2477,6 @@
                 openEditModal(proposal)
             }
 
-
-
             const exportToPDF = async (proposal) => {
                 try {
                     clearError()
@@ -2732,25 +2750,24 @@
             }
 
             const saveSelectedItems = () => {
+                const toAdd = selectedItems.value.filter((item) => !isItemAlreadyAdded(item))
                 if (selectedItems.value.length === 0) {
                     alert('Selecione pelo menos um item')
                     return
                 }
 
-                // Adicionar todos os itens selecionados à proposta
-                selectedItems.value.forEach((item) => {
+                toAdd.forEach((item) => {
                     const newItem = {
                         codigo: item.name,
                         descricao: item.description,
                         categoria: item.type, // 'produto' | 'servico'
                         unidade: item.unit || '',
-                        valor_unitario: item.price || 0, // <- o que a proposta usa
-                        preco_base: item.price || 0, // <- referência do cadastro
-                        quantity: 1, // <- padrão
+                        valor_unitario: item.price || 0,
+                        preco_base: item.price || 0,
+                        quantity: 1,
                         source_id: item.id,
-                        source_table: item.type === 'produto' ? 'products' : 'services',
+                        source_table: typeToTable(item.type), // 'products' | 'services'
                     }
-
                     form.value.items.push(newItem)
                 })
 
@@ -2900,34 +2917,30 @@
             }
 
             const saveSelectedSupplies = () => {
+                const toAdd = selectedSupplies.value.filter((s) => !isSupplyAlreadyAdded(s))
+
                 if (selectedSupplies.value.length === 0) {
                     alert('Selecione pelo menos um insumo')
                     return
                 }
 
-                selectedSupplies.value.forEach((supply) => {
-                    // garante número (aceita string "1.111,00", "1111.00" etc.)
+                toAdd.forEach((supply) => {
                     let priceNum = supply?.price ?? 0
-                    if (typeof priceNum === 'string') {
+                    if (typeof priceNum === 'string')
                         priceNum = Number(priceNum.replace(/\./g, '').replace(',', '.'))
-                    }
-                    priceNum = Number(priceNum)
-                    if (!Number.isFinite(priceNum)) priceNum = 0
+                    priceNum = Number.isFinite(Number(priceNum)) ? Number(priceNum) : 0
 
                     const newSupply = {
                         codigo: supply.name || '',
                         descricao: supply.description || '',
                         tipo: supply.type || '',
                         unidade: supply.unit || '',
-                        // preço usado na proposta (editável)
                         valor_unitario: priceNum,
-                        // preço original do cadastro (só referência)
                         preco_base: priceNum,
                         quantity: 1,
                         source_id: supply.id,
                         source_table: 'supplies',
                     }
-
                     form.value.insumos.push(newSupply)
                 })
 
@@ -3224,37 +3237,28 @@
             }
 
             const saveSelectedOptionals = () => {
+                const toAdd = selectedOptionals.value.filter((o) => !isOptionalAlreadyAdded(o))
+
                 if (selectedOptionals.value.length === 0) return
 
-                selectedOptionals.value.forEach((optional) => {
-                    // preço base (garante número mesmo se vier string "1.111,00")
-                    let priceNum = optional?.valor_unitario ?? optional?.price ?? 0
-                    if (typeof priceNum === 'string') {
+                toAdd.forEach((optional) => {
+                    let priceNum =
+                        optional?._custom_price ?? optional?.valor_unitario ?? optional?.price ?? 0
+                    if (typeof priceNum === 'string')
                         priceNum = Number(priceNum.replace(/\./g, '').replace(',', '.'))
-                    }
-                    priceNum = Number(priceNum)
-                    if (!Number.isFinite(priceNum)) priceNum = 0
+                    priceNum = Number.isFinite(Number(priceNum)) ? Number(priceNum) : 0
 
                     const newOptional = {
-                        // fallback para manter compat mesmo se não vierem os alias
-                        codigo: optional.codigo || optional.name || '',
-                        descricao: optional.descricao || optional.description || '',
-                        categoria: optional.categoria || 'opcional', // apenas informativo
-                        unidade: optional.unidade || optional.unit || '',
-
-                        // preço que valerá no PDF (pode ser editável depois)
-                        valor_unitario: optional._custom_price ?? priceNum,
-
-                        // referência do cadastro original (não usado no total)
+                        codigo: optional.name || optional.codigo || '',
+                        descricao: optional.description || optional.descricao || '',
+                        categoria: optional.type === 'produto' ? 'Produto' : 'Serviço',
+                        unidade: optional.unit || optional.unidade || '',
+                        valor_unitario: priceNum,
                         preco_base: priceNum,
-
                         quantity: Number(optional.quantity) || 1,
-
-                        // rastreabilidade da origem
                         source_id: optional.id,
-                        source_table: optional.type === 'produto' ? 'products' : 'services',
+                        source_table: typeToTable(optional.type),
                     }
-
                     form.value.opcionais.push(newOptional)
                 })
 
@@ -3393,6 +3397,43 @@
                 recalculateTotals()
             }
 
+            // mapeia o tipo mostrado no modal para a tabela de origem gravada na proposta
+            const typeToTable = (t) =>
+                t === 'produto' ? 'products' : t === 'servico' ? 'services' : t
+
+            // Já existe na proposta? (Itens)
+            const isItemAlreadyAdded = (item) => {
+                const table = typeToTable(item.type)
+                return (form.value.items || []).some((r) => {
+                    if (r.source_id != null && r.source_table)
+                        return String(r.source_id) === String(item.id) && r.source_table === table
+                    // fallback (registros antigos sem source_*):
+                    const cat = (r.categoria || '').toLowerCase()
+                    return r.codigo === item.name && cat === item.type
+                })
+            }
+
+            // Já existe na proposta? (Insumos)
+            const isSupplyAlreadyAdded = (supply) => {
+                return (form.value.insumos || []).some((r) => {
+                    if (r.source_id != null) return String(r.source_id) === String(supply.id)
+                    return r.codigo === (supply.name || '')
+                })
+            }
+
+            // Já existe na proposta? (Opcionais)
+            const isOptionalAlreadyAdded = (optional) => {
+                const table = typeToTable(optional.type)
+                return (form.value.opcionais || []).some((r) => {
+                    if (r.source_id != null && r.source_table)
+                        return (
+                            String(r.source_id) === String(optional.id) && r.source_table === table
+                        )
+                    // fallback
+                    return r.codigo === (optional.name || optional.codigo || '')
+                })
+            }
+
             return {
                 proposals,
                 filteredProposals,
@@ -3415,6 +3456,9 @@
                 onDragLeave,
                 isDragOver,
                 revertPrice,
+                isItemAlreadyAdded,
+                isSupplyAlreadyAdded,
+                isOptionalAlreadyAdded,
                 filterProposals,
                 filterClients,
                 clearSearch,
@@ -3681,7 +3725,6 @@
         margin-left: 5px;
     }
 
-
     .proposal-info {
         flex: 1;
         margin-bottom: 15px;
@@ -3751,8 +3794,6 @@
         text-align: center;
     }
 
-
-
     .value-label {
         font-size: 12px;
         color: #666;
@@ -3790,7 +3831,6 @@
         align-items: center;
         justify-content: center;
     }
-
 
     .btn-secondary {
         background: #6c757d;
@@ -4300,8 +4340,6 @@
             justify-content: center;
             flex-wrap: wrap;
         }
-
- 
 
         .modal-overlay {
             padding: 10px;
@@ -5562,7 +5600,6 @@
         margin-bottom: 24px;
     }
 
-
     @media (min-width: 768px) {
         .form-grid {
             grid-template-columns: 1fr 1fr;
@@ -5774,87 +5811,278 @@
         border-color: #1976d2 !important;
         box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
     }
-/* =========================
+    /* =========================
    CARDS (grid + card + ações) — CONSOLIDADO
    ========================= */
-.proposals-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:16px;
-  margin-top:16px;
-  align-items:stretch;
-}
-@media (max-width:1400px){ .proposals-grid{ grid-template-columns:repeat(3,1fr); } }
-@media (max-width:1024px){ .proposals-grid{ grid-template-columns:repeat(2,1fr); } }
-@media (max-width:640px){  .proposals-grid{ grid-template-columns:1fr; } }
+    .proposals-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-top: 16px;
+        align-items: stretch;
+    }
+    @media (max-width: 1400px) {
+        .proposals-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    @media (max-width: 1024px) {
+        .proposals-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 640px) {
+        .proposals-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 
-.proposal-card{
-  display:flex; flex-direction:column; min-height:340px;
-  padding:14px 16px; border-radius:8px; background:#fff;
-  border:1px solid #eaeaea; box-shadow:0 1px 6px rgba(0,0,0,.06);
-  transition:box-shadow .2s, transform .2s;
-}
-.proposal-card:hover{ transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,.15); }
+    .proposal-card {
+        display: flex;
+        flex-direction: column;
+        min-height: 340px;
+        padding: 14px 16px;
+        border-radius: 8px;
+        background: #fff;
+        border: 1px solid #eaeaea;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+        transition:
+            box-shadow 0.2s,
+            transform 0.2s;
+    }
+    .proposal-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
 
-/* topo */
-.card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:8px; }
-.event-title{ margin:0; font-size:16px; font-weight:600; color:#1a1a1a; line-height:1.3; }
-.top-right{ display:flex; align-items:center; gap:12px; }
-.proposal-number-inline{ display:inline-flex; align-items:center; gap:6px; color:#0d6efd; font-weight:600; user-select:none; }
-.proposal-number-inline .prefix{ font-size:12px; color:#7a7a7a; font-weight:500; }
-.proposal-number-inline .number{ font-size:14px; color:#0d6efd; }
-.proposal-number-inline .small{ font-size:12px; color:#7a7a7a; }
-.inline-icon-btn{ margin-left:8px; border:none; background:transparent; cursor:pointer; color:#888; padding:2px 4px; border-radius:4px; }
-.inline-icon-btn:hover{ color:#555; }
+    /* topo */
+    .card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 8px;
+    }
+    .event-title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #1a1a1a;
+        line-height: 1.3;
+    }
+    .top-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .proposal-number-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #0d6efd;
+        font-weight: 600;
+        user-select: none;
+    }
+    .proposal-number-inline .prefix {
+        font-size: 12px;
+        color: #7a7a7a;
+        font-weight: 500;
+    }
+    .proposal-number-inline .number {
+        font-size: 14px;
+        color: #0d6efd;
+    }
+    .proposal-number-inline .small {
+        font-size: 12px;
+        color: #7a7a7a;
+    }
+    .inline-icon-btn {
+        margin-left: 8px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        color: #888;
+        padding: 2px 4px;
+        border-radius: 4px;
+    }
+    .inline-icon-btn:hover {
+        color: #555;
+    }
 
-/* conteúdo */
-.proposal-info{ flex:1 1 auto; min-height:0; }
-.client-name,.event-name,.event-type{ display:flex; align-items:center; gap:8px; margin:0 0 8px 0; color:#333; }
-.client-name{ font-size:14px; font-weight:600; }
-.event-name{ font-size:16px; font-weight:500; }
-.event-type{ font-size:14px; color:#666; margin-bottom:12px; }
-.client-name i{ color:#007bff; font-size:16px; }
-.event-name i{ color:#28a745; font-size:14px; }
-.event-type i{ color:#ffc107; font-size:14px; }
-.event-details{ display:flex; flex-direction:column; gap:6px; margin-bottom:15px; }
-.detail-item{ display:flex; align-items:center; gap:8px; font-size:13px; color:#666; }
-.detail-item i{ color:#6c757d; font-size:12px; width:14px; text-align:center; }
+    /* conteúdo */
+    .proposal-info {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+    .client-name,
+    .event-name,
+    .event-type {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 8px 0;
+        color: #333;
+    }
+    .client-name {
+        font-size: 14px;
+        font-weight: 600;
+    }
+    .event-name {
+        font-size: 16px;
+        font-weight: 500;
+    }
+    .event-type {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 12px;
+    }
+    .client-name i {
+        color: #007bff;
+        font-size: 16px;
+    }
+    .event-name i {
+        color: #28a745;
+        font-size: 14px;
+    }
+    .event-type i {
+        color: #ffc107;
+        font-size: 14px;
+    }
+    .event-details {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 15px;
+    }
+    .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #666;
+    }
+    .detail-item i {
+        color: #6c757d;
+        font-size: 12px;
+        width: 14px;
+        text-align: center;
+    }
 
-/* status */
-.status-dropdown-container{ position:relative; }
-.status-dropdown{
-  padding:6px 10px; border:1px solid #dedede; border-radius:8px;
-  font-size:12px; font-weight:600; background:#fff; min-width:120px; color:#333; cursor:pointer;
-}
-.status-dropdown:focus{ outline:0; border-color:#007bff; box-shadow:0 0 0 2px rgba(0,123,255,.25); }
+    /* status */
+    .status-dropdown-container {
+        position: relative;
+    }
+    .status-dropdown {
+        padding: 6px 10px;
+        border: 1px solid #dedede;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #fff;
+        min-width: 120px;
+        color: #333;
+        cursor: pointer;
+    }
+    .status-dropdown:focus {
+        outline: 0;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
 
-/* valor */
-.proposal-value-section{
-  margin-top:14px; background:#f6fff8; border:1px solid #d6f5df; border-left:5px solid #28a745;
-  border-radius:8px; padding:12px 14px;
-}
-.proposal-value-section .value-label{ font-size:12px; color:#666; margin-bottom:4px; }
-.proposal-value-section .value-amount{ color:#28a745; font-size:20px; font-weight:700; margin:0 0 6px 0; }
-.proposal-value-section .value-updated{ font-size:12px; color:#6c757d; }
+    /* valor */
+    .proposal-value-section {
+        margin-top: 14px;
+        background: #f6fff8;
+        border: 1px solid #d6f5df;
+        border-left: 5px solid #28a745;
+        border-radius: 8px;
+        padding: 12px 14px;
+    }
+    .proposal-value-section .value-label {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 4px;
+    }
+    .proposal-value-section .value-amount {
+        color: #28a745;
+        font-size: 20px;
+        font-weight: 700;
+        margin: 0 0 6px 0;
+    }
+    .proposal-value-section .value-updated {
+        font-size: 12px;
+        color: #6c757d;
+    }
 
-/* ações */
-.proposal-actions{
-  margin-top:auto; display:flex; gap:8px; justify-content:flex-start;
-  padding-top:12px; border-top:1px solid #f0f0f0;
-}
-.action-btn, .proposal-actions button{
-  display:inline-flex; align-items:center; justify-content:center; gap:6px; min-width:65px;
-  padding:6px 8px; border-radius:6px; border:1px solid #e6e6e6; background:#fff; color:#444;
-  font-size:12px; font-weight:500; transition:background .15s, transform .15s, box-shadow .15s; cursor:pointer;
-}
-.action-btn:hover, .proposal-actions button:hover{ background:#f7f7f7; transform:translateY(-1px); }
-.edit-btn .icon-edit{ color:#0d6efd; } .pdf-btn .icon-pdf{ color:#dc3545; }
-.link-btn .icon-link{ color:#0d6efd; } .delete-btn .icon-trash{ color:#6c757d; }
-.pdf-btn.generating{ opacity:.7; cursor:not-allowed; }
-.pdf-btn .fa-spinner{ color:#dc3545; }  /* mantido do seu bloco anterior */
+    /* ações */
+    .proposal-actions {
+        margin-top: auto;
+        display: flex;
+        gap: 8px;
+        justify-content: flex-start;
+        padding-top: 12px;
+        border-top: 1px solid #f0f0f0;
+    }
+    .action-btn,
+    .proposal-actions button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-width: 65px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid #e6e6e6;
+        background: #fff;
+        color: #444;
+        font-size: 12px;
+        font-weight: 500;
+        transition:
+            background 0.15s,
+            transform 0.15s,
+            box-shadow 0.15s;
+        cursor: pointer;
+    }
+    .action-btn:hover,
+    .proposal-actions button:hover {
+        background: #f7f7f7;
+        transform: translateY(-1px);
+    }
+    .edit-btn .icon-edit {
+        color: #0d6efd;
+    }
+    .pdf-btn .icon-pdf {
+        color: #dc3545;
+    }
+    .link-btn .icon-link {
+        color: #0d6efd;
+    }
+    .delete-btn .icon-trash {
+        color: #6c757d;
+    }
+    .pdf-btn.generating {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+    .pdf-btn .fa-spinner {
+        color: #dc3545;
+    } /* mantido do seu bloco anterior */
 
-/* ícones */
-.icon-edit::before{ content:'✏️'; } .icon-pdf::before{ content:'📄'; }
-.icon-link::before{ content:'🔗'; } .icon-trash::before{ content:'🗑️'; }
-
+    /* ícones */
+    .icon-edit::before {
+        content: '✏️';
+    }
+    .icon-pdf::before {
+        content: '📄';
+    }
+    .icon-link::before {
+        content: '🔗';
+    }
+    .icon-trash::before {
+        content: '🗑️';
+    }
+    .item-selection-card.disabled {
+        cursor: not-allowed;
+        opacity: 0.8;
+    }
 </style>
