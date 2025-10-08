@@ -46,26 +46,16 @@
                 <div class="card-top">
                     <h3 class="event-title">
                         {{ proposal.title || '—' }}
-                        <button
-                            class="inline-icon-btn"
-                            @click.stop="editProposal(proposal)"
-                            title="Editar título"
-                        >
-                            <i class="fa-solid fa-pen"></i>
-                        </button>
                     </h3>
+
                     <div class="top-right">
-                        <div
-                            class="proposal-number-inline"
-                            @click.stop="editProposal(proposal)"
-                            title="Editar proposta"
-                        >
+                        <div class="proposal-number-inline readonly" title="Número da proposta">
                             <span class="prefix">Nº</span>
                             <span class="number">
                                 {{ proposal.proposal_number || proposal.id }}
                             </span>
-                            <i class="fa-solid fa-pen small"></i>
                         </div>
+
                         <div class="status-dropdown-container" @click.stop>
                             <select
                                 :value="normalizeStatus(proposal.status || 'draft')"
@@ -159,14 +149,7 @@
                         <i v-else class="fa-solid fa-spinner fa-spin"></i>
                         <span>{{ isGenerating ? 'Gerando...' : 'PDF' }}</span>
                     </button>
-                    <button
-                        @click.stop="copyProposalLink(proposal)"
-                        class="action-btn link-btn"
-                        title="Copiar link"
-                    >
-                        <i class="icon-link"></i>
-                        <span>Link</span>
-                    </button>
+                   
                     <button
                         @click.stop="deleteProposal(proposal.id)"
                         class="action-btn delete-btn"
@@ -858,12 +841,7 @@
                                                             Number(item.valor_unitario)
                                                     "
                                                     class="inline-icon-btn"
-                                                    @click="
-                                                        item.valor_unitario = Number(
-                                                            item.preco_base
-                                                        )
-                                                        recalculateTotals()
-                                                    "
+                                                    @click="revertPrice(item)"
                                                     title="Reverter para o preço do cadastro"
                                                 >
                                                     <i class="fa-solid fa-rotate-left"></i>
@@ -982,12 +960,7 @@
                                                             Number(insumo.valor_unitario)
                                                     "
                                                     class="inline-icon-btn"
-                                                    @click="
-                                                        insumo.valor_unitario = Number(
-                                                            insumo.preco_base
-                                                        )
-                                                        recalculateTotals()
-                                                    "
+                                                    @click="revertPrice(insumo)"
                                                     title="Reverter para o preço do cadastro"
                                                 >
                                                     <i class="fa-solid fa-rotate-left"></i>
@@ -1104,12 +1077,7 @@
                                                             Number(opcional.valor_unitario)
                                                     "
                                                     class="inline-icon-btn"
-                                                    @click="
-                                                        opcional.valor_unitario = Number(
-                                                            opcional.preco_base
-                                                        )
-                                                        recalculateTotals()
-                                                    "
+                                                    @click="revertPrice(opcional)"
                                                     title="Reverter para o preço do cadastro"
                                                 >
                                                     <i class="fa-solid fa-rotate-left"></i>
@@ -2489,10 +2457,7 @@
                 openEditModal(proposal)
             }
 
-            const copyProposalLink = (proposal) => {
-                // Implementar cópia de link da proposta
-                alert(`Link da proposta ${proposal.proposal_number || proposal.id} copiado!`)
-            }
+
 
             const exportToPDF = async (proposal) => {
                 try {
@@ -3414,6 +3379,20 @@
             const isDragOver = (type, index) =>
                 dragOver.value.type === type && dragOver.value.index === index
 
+            // dentro de setup()
+            const revertPrice = (row) => {
+                // pega o preço base (ou price do cadastro como fallback), força número
+                const base =
+                    row?.preco_base != null
+                        ? Number(row.preco_base)
+                        : row?.price != null
+                          ? Number(row.price)
+                          : 0
+
+                row.valor_unitario = Number.isFinite(base) ? base : 0
+                recalculateTotals()
+            }
+
             return {
                 proposals,
                 filteredProposals,
@@ -3435,6 +3414,7 @@
                 onDragEnter,
                 onDragLeave,
                 isDragOver,
+                revertPrice,
                 filterProposals,
                 filterClients,
                 clearSearch,
@@ -3449,7 +3429,6 @@
                 saveProposal,
                 deleteProposal,
                 editProposal,
-                copyProposalLink,
                 exportToPDF,
                 isGenerating,
                 generationError,
@@ -3702,52 +3681,6 @@
         margin-left: 5px;
     }
 
-    /* 2) Grade: coloca o máximo possível por linha */
-    .proposals-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* antes: 400px */
-        gap: 16px; /* antes: 24px */
-        margin-top: 16px; /* antes: 24px */
-    }
-
-    /* 3) Card mais compacto (pra caber mais) */
-    .proposal-card {
-        padding: 14px 16px; /* já tinha */
-        border-radius: 8px; /* já tinha */
-        background: #fff; /* <= aqui */
-        border: 1px solid #eaeaea; /* opcional, dá contorno */
-        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06); /* opcional */
-    }
-
-    .proposal-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-    }
-
-    .status-dropdown-container {
-        position: relative;
-    }
-
-    .status-dropdown {
-        padding: 4px 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 12px;
-        font-weight: 500;
-        background: white;
-        cursor: pointer;
-        min-width: 100px;
-    }
-
-    .status-dropdown:focus {
-        outline: none;
-        border-color: #007bff;
-        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-    }
-
-    .status-dropdown option {
-        padding: 4px 8px;
-    }
 
     .proposal-info {
         flex: 1;
@@ -3818,12 +3751,7 @@
         text-align: center;
     }
 
-    .proposal-value-section {
-        background: #f8f9fa;
-        padding: 12px;
-        border-radius: 6px;
-        margin-top: 12px;
-    }
+
 
     .value-label {
         font-size: 12px;
@@ -3863,10 +3791,6 @@
         justify-content: center;
     }
 
-    .proposal-actions button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    }
 
     .btn-secondary {
         background: #6c757d;
@@ -4279,27 +4203,6 @@
         border-top: 1px solid #f0f0f0;
     }
 
-    .action-btn {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 6px 12px;
-        border: 1px solid #ddd;
-        background: white;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        min-width: 65px;
-        justify-content: center;
-    }
-
-    .action-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-
     .edit-btn {
         color: #007bff;
         border-color: #007bff;
@@ -4398,10 +4301,7 @@
             flex-wrap: wrap;
         }
 
-        .action-btn {
-            flex: 1;
-            min-width: 70px;
-        }
+ 
 
         .modal-overlay {
             padding: 10px;
@@ -5661,12 +5561,7 @@
         gap: 16px;
         margin-bottom: 24px;
     }
-    /* 4) Em telas grandes, fique ainda mais denso (opcional) */
-    .proposals-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); /* antes 400px/320px */
-        gap: 20px;
-    }
+
 
     @media (min-width: 768px) {
         .form-grid {
@@ -5879,4 +5774,87 @@
         border-color: #1976d2 !important;
         box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
     }
+/* =========================
+   CARDS (grid + card + ações) — CONSOLIDADO
+   ========================= */
+.proposals-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:16px;
+  margin-top:16px;
+  align-items:stretch;
+}
+@media (max-width:1400px){ .proposals-grid{ grid-template-columns:repeat(3,1fr); } }
+@media (max-width:1024px){ .proposals-grid{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:640px){  .proposals-grid{ grid-template-columns:1fr; } }
+
+.proposal-card{
+  display:flex; flex-direction:column; min-height:340px;
+  padding:14px 16px; border-radius:8px; background:#fff;
+  border:1px solid #eaeaea; box-shadow:0 1px 6px rgba(0,0,0,.06);
+  transition:box-shadow .2s, transform .2s;
+}
+.proposal-card:hover{ transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,.15); }
+
+/* topo */
+.card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:8px; }
+.event-title{ margin:0; font-size:16px; font-weight:600; color:#1a1a1a; line-height:1.3; }
+.top-right{ display:flex; align-items:center; gap:12px; }
+.proposal-number-inline{ display:inline-flex; align-items:center; gap:6px; color:#0d6efd; font-weight:600; user-select:none; }
+.proposal-number-inline .prefix{ font-size:12px; color:#7a7a7a; font-weight:500; }
+.proposal-number-inline .number{ font-size:14px; color:#0d6efd; }
+.proposal-number-inline .small{ font-size:12px; color:#7a7a7a; }
+.inline-icon-btn{ margin-left:8px; border:none; background:transparent; cursor:pointer; color:#888; padding:2px 4px; border-radius:4px; }
+.inline-icon-btn:hover{ color:#555; }
+
+/* conteúdo */
+.proposal-info{ flex:1 1 auto; min-height:0; }
+.client-name,.event-name,.event-type{ display:flex; align-items:center; gap:8px; margin:0 0 8px 0; color:#333; }
+.client-name{ font-size:14px; font-weight:600; }
+.event-name{ font-size:16px; font-weight:500; }
+.event-type{ font-size:14px; color:#666; margin-bottom:12px; }
+.client-name i{ color:#007bff; font-size:16px; }
+.event-name i{ color:#28a745; font-size:14px; }
+.event-type i{ color:#ffc107; font-size:14px; }
+.event-details{ display:flex; flex-direction:column; gap:6px; margin-bottom:15px; }
+.detail-item{ display:flex; align-items:center; gap:8px; font-size:13px; color:#666; }
+.detail-item i{ color:#6c757d; font-size:12px; width:14px; text-align:center; }
+
+/* status */
+.status-dropdown-container{ position:relative; }
+.status-dropdown{
+  padding:6px 10px; border:1px solid #dedede; border-radius:8px;
+  font-size:12px; font-weight:600; background:#fff; min-width:120px; color:#333; cursor:pointer;
+}
+.status-dropdown:focus{ outline:0; border-color:#007bff; box-shadow:0 0 0 2px rgba(0,123,255,.25); }
+
+/* valor */
+.proposal-value-section{
+  margin-top:14px; background:#f6fff8; border:1px solid #d6f5df; border-left:5px solid #28a745;
+  border-radius:8px; padding:12px 14px;
+}
+.proposal-value-section .value-label{ font-size:12px; color:#666; margin-bottom:4px; }
+.proposal-value-section .value-amount{ color:#28a745; font-size:20px; font-weight:700; margin:0 0 6px 0; }
+.proposal-value-section .value-updated{ font-size:12px; color:#6c757d; }
+
+/* ações */
+.proposal-actions{
+  margin-top:auto; display:flex; gap:8px; justify-content:flex-start;
+  padding-top:12px; border-top:1px solid #f0f0f0;
+}
+.action-btn, .proposal-actions button{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px; min-width:65px;
+  padding:6px 8px; border-radius:6px; border:1px solid #e6e6e6; background:#fff; color:#444;
+  font-size:12px; font-weight:500; transition:background .15s, transform .15s, box-shadow .15s; cursor:pointer;
+}
+.action-btn:hover, .proposal-actions button:hover{ background:#f7f7f7; transform:translateY(-1px); }
+.edit-btn .icon-edit{ color:#0d6efd; } .pdf-btn .icon-pdf{ color:#dc3545; }
+.link-btn .icon-link{ color:#0d6efd; } .delete-btn .icon-trash{ color:#6c757d; }
+.pdf-btn.generating{ opacity:.7; cursor:not-allowed; }
+.pdf-btn .fa-spinner{ color:#dc3545; }  /* mantido do seu bloco anterior */
+
+/* ícones */
+.icon-edit::before{ content:'✏️'; } .icon-pdf::before{ content:'📄'; }
+.icon-link::before{ content:'🔗'; } .icon-trash::before{ content:'🗑️'; }
+
 </style>
