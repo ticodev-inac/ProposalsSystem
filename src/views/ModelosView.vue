@@ -272,20 +272,53 @@
                                     v-for="(item, index) in modelForm.items"
                                     :key="index"
                                     class="item-card"
+                                    draggable="true"
+                                    @dragstart="onDragStart('items', index)"
+                                    @dragover.prevent
+                                    @drop="onDrop('items', index)"
                                 >
                                     <div class="item-info">
-                                        <h6>{{ item.codigo }}</h6>
+                                        <h5>{{ item.codigo }}</h5>
                                         <p>{{ item.descricao }}</p>
+
                                         <div class="item-details">
                                             <span class="badge badge-info">
                                                 {{ item.categoria }}
                                             </span>
-                                            <span class="item-price">
-                                                {{ formatCurrency(item.valor_unitario) }}
+
+                                            <!-- PREÇO AO LADO DO BADGE -->
+                                            <div class="price-inline">
+                                                <span class="currency">R$</span>
+                                                <input
+                                                    type="number"
+                                                    class="price-input"
+                                                    v-model.number="item.valor_unitario"
+                                                    @change="onUnitPriceChange(item)"
+                                                    min="0"
+                                                    step="0.01"
+                                                    title="Preço unitário"
+                                                />
+                                                <button
+                                                    v-if="item.valor_unitario !== item.preco_base"
+                                                    class="btn-ghost"
+                                                    @click="revertPrice(item)"
+                                                    title="Reverter preço"
+                                                >
+                                                    ⟲
+                                                </button>
+                                            </div>
+
+                                            <span
+                                                v-if="item.valor_unitario !== item.preco_base"
+                                                class="chip-ajustado"
+                                            >
+                                                ajustado
                                             </span>
                                         </div>
                                     </div>
-                                    <div class="item-controls">
+
+                                    <div class="item-controls" style="gap: 10px">
+                                        <!-- DEIXE A QUANTIDADE AQUI COMO ESTÁ -->
                                         <div class="quantity-switch">
                                             <button
                                                 @click="decrementItemQuantity(index)"
@@ -293,9 +326,13 @@
                                             >
                                                 <i class="fa-solid fa-minus"></i>
                                             </button>
-                                            <span class="qty-display">
-                                                {{ item.quantity || 1 }}
-                                            </span>
+                                            <input
+                                                class="qty-display-input"
+                                                type="number"
+                                                v-model.number="item.quantity"
+                                                @change="onQtyChange(item)"
+                                                min="1"
+                                            />
                                             <button
                                                 @click="incrementItemQuantity(index)"
                                                 class="qty-btn"
@@ -303,6 +340,7 @@
                                                 <i class="fa-solid fa-plus"></i>
                                             </button>
                                         </div>
+
                                         <button @click="removeItem(index)" class="btn-delete">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
@@ -329,46 +367,82 @@
                                 </button>
                             </div>
 
-                            <div v-else class="items-list">
-                                <div
-                                    v-for="(insumo, index) in modelForm.insumos"
-                                    :key="index"
-                                    class="item-card"
-                                >
-                                    <div class="item-info">
-                                        <h6>{{ insumo.codigo }}</h6>
-                                        <p>{{ insumo.descricao }}</p>
-                                        <div class="item-details">
-                                            <span class="badge badge-warning">
-                                                {{ insumo.tipo }}
-                                            </span>
-                                            <span class="item-price">
-                                                {{ formatCurrency(insumo.valor_unitario) }}
-                                            </span>
+                            <div
+                                v-for="(insumo, index) in modelForm.insumos"
+                                :key="index"
+                                class="item-card"
+                                draggable="true"
+                                @dragstart="onDragStart('insumos', index)"
+                                @dragover.prevent
+                                @drop="onDrop('insumos', index)"
+                            >
+                                <div class="item-info">
+                                    <h5>{{ insumo.codigo }}</h5>
+                                    <p>{{ insumo.descricao }}</p>
+
+                                    <div class="item-details">
+                                        <span class="badge badge-warning">
+                                            {{ getSupplyTypeLabel(insumo.tipo) }}
+                                        </span>
+
+                                        <!-- PREÇO AO LADO DO BADGE -->
+                                        <div class="price-inline">
+                                            <span class="currency">R$</span>
+                                            <input
+                                                type="number"
+                                                class="price-input"
+                                                v-model.number="insumo.valor_unitario"
+                                                @change="onUnitPriceChange(insumo)"
+                                                min="0"
+                                                step="0.01"
+                                                title="Preço unitário"
+                                            />
+                                            <button
+                                                v-if="insumo.valor_unitario !== insumo.preco_base"
+                                                class="btn-ghost"
+                                                @click="revertPrice(insumo)"
+                                                title="Reverter preço"
+                                            >
+                                                ⟲
+                                            </button>
                                         </div>
+
+                                        <span
+                                            v-if="insumo.valor_unitario !== insumo.preco_base"
+                                            class="chip-ajustado"
+                                        >
+                                            ajustado
+                                        </span>
                                     </div>
-                                    <div class="item-controls">
-                                        <div class="quantity-switch">
-                                            <button
-                                                @click="decrementSupplyQuantity(index)"
-                                                class="qty-btn"
-                                            >
-                                                <i class="fa-solid fa-minus"></i>
-                                            </button>
-                                            <span class="qty-display">
-                                                {{ insumo.quantity || 1 }}
-                                            </span>
-                                            <button
-                                                @click="incrementSupplyQuantity(index)"
-                                                class="qty-btn"
-                                            >
-                                                <i class="fa-solid fa-plus"></i>
-                                            </button>
-                                        </div>
-                                        <button @click="removeSupply(index)" class="btn-delete">
-                                            <i class="fa-solid fa-trash"></i>
+                                </div>
+
+                                <div class="item-controls" style="gap: 10px">
+                                    <!-- QUANTIDADE permanece aqui -->
+                                    <div class="quantity-switch">
+                                        <button
+                                            @click="decrementSupplyQuantity(index)"
+                                            class="qty-btn"
+                                        >
+                                            <i class="fa-solid fa-minus"></i>
+                                        </button>
+                                        <input
+                                            class="qty-display-input"
+                                            type="number"
+                                            v-model.number="insumo.quantity"
+                                            @change="onQtyChange(insumo)"
+                                            min="1"
+                                        />
+                                        <button
+                                            @click="incrementSupplyQuantity(index)"
+                                            class="qty-btn"
+                                        >
+                                            <i class="fa-solid fa-plus"></i>
                                         </button>
                                     </div>
+
+                                    <button @click="removeSupply(index)" class="btn-delete">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -396,18 +470,56 @@
                                     v-for="(opcional, index) in modelForm.opcionais"
                                     :key="index"
                                     class="item-card"
+                                    draggable="true"
+                                    @dragstart="onDragStart('opcionais', index)"
+                                    @dragover.prevent
+                                    @drop="onDrop('opcionais', index)"
                                 >
                                     <div class="item-info">
-                                        <h6>{{ opcional.codigo }}</h6>
+                                        <h5>{{ opcional.codigo }}</h5>
                                         <p>{{ opcional.descricao }}</p>
+
                                         <div class="item-details">
                                             <span class="badge badge-success">Opcional</span>
-                                            <span class="item-price">
-                                                {{ formatCurrency(opcional.valor_unitario) }}
+
+                                            <!-- PREÇO AO LADO DO BADGE -->
+                                            <div class="price-inline">
+                                                <span class="currency">R$</span>
+                                                <input
+                                                    type="number"
+                                                    class="price-input"
+                                                    v-model.number="opcional.valor_unitario"
+                                                    @change="onUnitPriceChange(opcional)"
+                                                    min="0"
+                                                    step="0.01"
+                                                    title="Preço unitário"
+                                                />
+                                                <button
+                                                    v-if="
+                                                        opcional.valor_unitario !==
+                                                        opcional.preco_base
+                                                    "
+                                                    class="btn-ghost"
+                                                    @click="revertPrice(opcional)"
+                                                    title="Reverter preço"
+                                                >
+                                                    ⟲
+                                                </button>
+                                            </div>
+
+                                            <span
+                                                v-if="
+                                                    opcional.valor_unitario !== opcional.preco_base
+                                                "
+                                                class="chip-ajustado"
+                                            >
+                                                ajustado
                                             </span>
                                         </div>
                                     </div>
-                                    <div class="item-controls">
+
+                                    <div class="item-controls" style="gap: 10px">
+                                        <!-- QUANTIDADE permanece aqui -->
                                         <div class="quantity-switch">
                                             <button
                                                 @click="decrementOptionalQuantity(index)"
@@ -415,9 +527,13 @@
                                             >
                                                 <i class="fa-solid fa-minus"></i>
                                             </button>
-                                            <span class="qty-display">
-                                                {{ opcional.quantity || 1 }}
-                                            </span>
+                                            <input
+                                                class="qty-display-input"
+                                                type="number"
+                                                v-model.number="opcional.quantity"
+                                                @change="onQtyChange(opcional)"
+                                                min="1"
+                                            />
                                             <button
                                                 @click="incrementOptionalQuantity(index)"
                                                 class="qty-btn"
@@ -425,6 +541,7 @@
                                                 <i class="fa-solid fa-plus"></i>
                                             </button>
                                         </div>
+
                                         <button @click="removeOptional(index)" class="btn-delete">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
@@ -514,11 +631,14 @@
                             v-for="item in filteredAvailableItems"
                             :key="`${item.type}-${item.id}`"
                             class="item-selection-card"
-                            :class="{ selected: isItemSelected(item) }"
-                            @click="toggleItemSelection(item)"
+                            :class="{
+                                selected: isItemSelected(item),
+                                disabled: isItemAlreadyAdded(item),
+                            }"
+                            @click="!isItemAlreadyAdded(item) && toggleItemSelection(item)"
                         >
                             <div class="item-info">
-                                <h6>{{ item.name }}</h6>
+                                <h5>{{ item.name }}</h5>
                                 <p v-if="item.description">{{ item.description }}</p>
                                 <div class="item-details">
                                     <span
@@ -532,16 +652,17 @@
                                     <span v-if="item.category_name" class="category-badge">
                                         {{ item.category_name }}
                                     </span>
-                                    <span class="item-price">{{ formatCurrency(item.price) }}</span>
                                     <span v-if="item.unit" class="item-unit">{{ item.unit }}</span>
                                 </div>
                             </div>
                             <div class="item-select-btn">
                                 <i
                                     :class="
-                                        isItemSelected(item)
-                                            ? 'fas fa-circle-check text-success'
-                                            : 'fas fa-plus'
+                                        isItemAlreadyAdded(item)
+                                            ? 'fas fa-ban'
+                                            : isItemSelected(item)
+                                              ? 'fas fa-circle-check text-success'
+                                              : 'fas fa-plus'
                                     "
                                 ></i>
                             </div>
@@ -639,11 +760,14 @@
                             v-for="supply in filteredAvailableSupplies"
                             :key="supply.id"
                             class="item-selection-card"
-                            :class="{ selected: isSupplySelected(supply) }"
-                            @click="toggleSupplySelection(supply)"
+                            :class="{
+                                selected: isSupplySelected(supply),
+                                disabled: isSupplyAlreadyAdded(supply),
+                            }"
+                            @click="!isSupplyAlreadyAdded(supply) && toggleSupplySelection(supply)"
                         >
                             <div class="item-info">
-                                <h6>{{ supply.name || supply.codigo }}</h6>
+                                <h5>{{ supply.name || supply.codigo }}</h5>
                                 <p v-if="supply.description || supply.descricao">
                                     {{ supply.description || supply.descricao }}
                                 </p>
@@ -651,9 +775,7 @@
                                     <span class="badge badge-warning">
                                         {{ getSupplyTypeLabel(supply.type || supply.tipo) }}
                                     </span>
-                                    <span class="item-price">
-                                        {{ formatCurrency(supply.price || supply.valor_unitario) }}
-                                    </span>
+
                                     <span v-if="supply.unit || supply.unidade" class="item-unit">
                                         {{ supply.unit || supply.unidade }}
                                     </span>
@@ -662,9 +784,11 @@
                             <div class="item-select-btn">
                                 <i
                                     :class="
-                                        isSupplySelected(supply)
-                                            ? 'fas fa-circle-check text-success'
-                                            : 'fas fa-plus'
+                                        isSupplyAlreadyAdded(supply)
+                                            ? 'fas fa-ban'
+                                            : isSupplySelected(supply)
+                                              ? 'fas fa-circle-check text-success'
+                                              : 'fas fa-plus'
                                     "
                                 ></i>
                             </div>
@@ -776,11 +900,17 @@
                             v-for="optional in filteredAvailableOptionals"
                             :key="`${optional.type}-${optional.id}`"
                             class="item-selection-card"
-                            :class="{ selected: isOptionalSelected(optional) }"
-                            @click="toggleOptionalSelection(optional)"
+                            :class="{
+                                selected: isOptionalSelected(optional),
+                                disabled: isOptionalAlreadyAdded(optional),
+                            }"
+                            @click="
+                                !isOptionalAlreadyAdded(optional) &&
+                                toggleOptionalSelection(optional)
+                            "
                         >
                             <div class="item-info">
-                                <h6>{{ optional.name }}</h6>
+                                <h5>{{ optional.name }}</h5>
                                 <p v-if="optional.description">{{ optional.description }}</p>
                                 <div class="item-details">
                                     <span
@@ -796,9 +926,7 @@
                                     <span v-if="optional.category_name" class="category-badge">
                                         {{ optional.category_name }}
                                     </span>
-                                    <span class="item-price">
-                                        {{ formatCurrency(optional.price) }}
-                                    </span>
+
                                     <span v-if="optional.unit" class="item-unit">
                                         {{ optional.unit }}
                                     </span>
@@ -807,9 +935,11 @@
                             <div class="item-select-btn">
                                 <i
                                     :class="
-                                        isOptionalSelected(optional)
-                                            ? 'fas fa-circle-check text-success'
-                                            : 'fas fa-plus'
+                                        isOptionalAlreadyAdded(optional)
+                                            ? 'fas fa-ban'
+                                            : isOptionalSelected(optional)
+                                              ? 'fas fa-circle-check text-success'
+                                              : 'fas fa-plus'
                                     "
                                 ></i>
                             </div>
@@ -920,18 +1050,23 @@
             const availableSupplyTypes = ref([])
             const loadingSupplyTypes = ref(false)
 
+            // onde declara modelForm inicialmente:
             const modelForm = ref({
                 name: '',
                 description: '',
                 color: '#007bff',
-                // Dados da proposta
+                // Proposta padrão
                 title: '',
                 event_type: '',
                 participants_count: null,
                 start_time: '',
                 end_time: '',
                 observations: '',
-                // Arrays para itens, insumos e opcionais
+                // Flags/observações padrão de totais
+                exibir_precos: true,
+                incluir_opcionais: false,
+                total_observations: '',
+                // Listas
                 items: [],
                 insumos: [],
                 opcionais: [],
@@ -1025,6 +1160,9 @@
                     start_time: '',
                     end_time: '',
                     observations: '',
+                    exibir_precos: true,
+                    incluir_opcionais: false,
+                    total_observations: '',
                     items: [],
                     insumos: [],
                     opcionais: [],
@@ -1046,9 +1184,12 @@
                     start_time: model.start_time || '',
                     end_time: model.end_time || '',
                     observations: model.observations || '',
-                    items: model.items || [],
-                    insumos: model.insumos || [],
-                    opcionais: model.opcionais || [],
+                    exibir_precos: model.exibir_precos ?? true,
+                    incluir_opcionais: model.incluir_opcionais ?? false,
+                    total_observations: model.total_observations || '',
+                    items: normalizeRows(model.items || [], 'items'),
+                    insumos: normalizeRows(model.insumos || [], 'insumos'),
+                    opcionais: normalizeRows(model.opcionais || [], 'opcionais'),
                 }
                 showModal.value = true
             }
@@ -1077,12 +1218,12 @@
             const saveModel = async () => {
                 try {
                     saving.value = true
+                    const payload = buildTemplatePayload()
                     if (isEditing.value) {
-                        await TemplatesService.updateTemplate(currentModelId.value, modelForm.value)
+                        await TemplatesService.updateTemplate(currentModelId.value, payload)
                     } else {
-                        await TemplatesService.createTemplate(modelForm.value)
+                        await TemplatesService.createTemplate(payload)
                     }
-
                     await loadModels()
                     closeModal()
                     alert(
@@ -1298,23 +1439,25 @@
                     alert('Selecione pelo menos um item')
                     return
                 }
-
-                // Adicionar todos os itens selecionados ao modelo
                 selectedItems.value.forEach((item) => {
-                    const newItem = {
-                        codigo: item.name,
-                        descricao: item.description || item.name,
-                        categoria: item.type,
-                        unidade: item.unit || '',
-                        valor_unitario: item.price || 0,
-                        quantity: 1,
-                        source_id: item.id,
-                        source_table: item.type === 'produto' ? 'products' : 'services',
-                    }
-
-                    modelForm.value.items.push(newItem)
+                    const base = Number(item.unit_price ?? item.price ?? 0)
+                    modelForm.value.items.push(
+                        normalizeRow(
+                            {
+                                codigo: item.name,
+                                descricao: item.description || item.name,
+                                categoria: item.type,
+                                unidade: item.unit || '',
+                                preco_base: base,
+                                valor_unitario: base,
+                                quantity: 1,
+                                source_id: item.id,
+                                source_table: item.type === 'produto' ? 'products' : 'services',
+                            },
+                            'items'
+                        )
+                    )
                 })
-
                 closeItemModal()
             }
 
@@ -1468,22 +1611,27 @@
                     alert('Selecione pelo menos um insumo')
                     return
                 }
-
-                // Adicionar todos os insumos selecionados ao modelo
                 selectedSupplies.value.forEach((supply) => {
-                    const newSupply = {
-                        codigo: supply.name || supply.codigo,
-                        descricao: supply.description || supply.descricao,
-                        tipo: supply.type || supply.tipo || '',
-                        unidade: supply.unit || supply.unidade || '',
-                        valor_unitario: supply.price || supply.valor_unitario || 0,
-                        source_id: supply.id,
-                        source_table: 'supplies',
-                    }
-
-                    modelForm.value.insumos.push(newSupply)
+                    const base = Number(
+                        supply.unit_price ?? supply.price ?? supply.valor_unitario ?? 0
+                    )
+                    modelForm.value.insumos.push(
+                        normalizeRow(
+                            {
+                                codigo: supply.name || supply.codigo,
+                                descricao: supply.description || supply.descricao,
+                                tipo: supply.type || supply.tipo || '',
+                                unidade: supply.unit || supply.unidade || '',
+                                preco_base: base,
+                                valor_unitario: base,
+                                quantity: 1,
+                                source_id: supply.id,
+                                source_table: 'supplies',
+                            },
+                            'insumos'
+                        )
+                    )
                 })
-
                 closeSupplyModal()
             }
 
@@ -1710,21 +1858,26 @@
                     alert('Selecione pelo menos um opcional')
                     return
                 }
-
-                // Adicionar todos os opcionais selecionados ao modelo
                 selectedOptionals.value.forEach((optional) => {
-                    const newOptional = {
-                        codigo: optional.name || optional.codigo,
-                        descricao: optional.description || optional.descricao,
-                        valor_unitario: optional.unit_price || optional.valor_unitario,
-                        nao_inclusos: '',
-                        source_id: optional.id,
-                        source_table: optional.type === 'produto' ? 'products' : 'services',
-                    }
-
-                    modelForm.value.opcionais.push(newOptional)
+                    const base = Number(
+                        optional.unit_price ?? optional.valor_unitario ?? optional.price ?? 0
+                    )
+                    modelForm.value.opcionais.push(
+                        normalizeRow(
+                            {
+                                codigo: optional.name || optional.codigo,
+                                descricao: optional.description || optional.descricao,
+                                preco_base: base,
+                                valor_unitario: base,
+                                quantity: 1,
+                                nao_inclusos: '',
+                                source_id: optional.id,
+                                source_table: optional.type === 'produto' ? 'products' : 'services',
+                            },
+                            'opcionais'
+                        )
+                    )
                 })
-
                 closeOptionalModal()
             }
 
@@ -1809,7 +1962,96 @@
                 await Promise.all([loadModels(), loadSupplyTypes()])
             })
 
+            // --- NOVOS ESTADOS/HELPERS ---
+            const dragState = ref({ list: null, from: -1 })
+
+            const typeToTable = (t) =>
+                t === 'produto' ? 'products' : t === 'servico' ? 'services' : 'supplies'
+
+            const normalizeRow = (row, listName) => ({
+                codigo: row.codigo || row.name || '',
+                descricao: row.descricao || row.description || '',
+                categoria: listName === 'items' ? row.categoria || row.type || '' : undefined,
+                tipo: listName === 'insumos' ? row.tipo || row.type || '' : undefined,
+                unidade: row.unidade || row.unit || '',
+                preco_base: Number(
+                    row.preco_base ?? row.valor_unitario ?? row.unit_price ?? row.price ?? 0
+                ),
+                valor_unitario: Number(
+                    row.valor_unitario ?? row.preco_base ?? row.unit_price ?? row.price ?? 0
+                ),
+                quantity: Number(row.quantity ?? 1),
+                source_id: row.source_id ?? row.id ?? null,
+                source_table:
+                    row.source_table ??
+                    (listName === 'insumos' ? 'supplies' : typeToTable(row.categoria || row.type)),
+            })
+
+            const normalizeRows = (rows, listName) =>
+                (rows || []).map((r) => normalizeRow(r, listName))
+
+            const onQtyChange = (row) => {
+                const n = Number(row.quantity)
+                if (!Number.isFinite(n) || n < 1) row.quantity = 1
+                else row.quantity = Math.floor(n)
+            }
+
+            const onUnitPriceChange = (row) => {
+                const n = Number(row.valor_unitario)
+                row.valor_unitario = Number.isFinite(n) ? n : row.preco_base || 0
+            }
+
+            const revertPrice = (row) => {
+                row.valor_unitario = Number(row.preco_base || 0)
+            }
+
+            const isItemAlreadyAdded = (item) =>
+                modelForm.value.items.some(
+                    (r) =>
+                        r.source_id === item.id &&
+                        r.source_table === (item.type === 'produto' ? 'products' : 'services')
+                )
+
+            const isSupplyAlreadyAdded = (supply) =>
+                modelForm.value.insumos.some(
+                    (r) => r.source_id === supply.id && r.source_table === 'supplies'
+                )
+
+            const isOptionalAlreadyAdded = (optional) =>
+                modelForm.value.opcionais.some(
+                    (r) =>
+                        r.source_id === optional.id &&
+                        r.source_table === (optional.type === 'produto' ? 'products' : 'services')
+                )
+
+            const onDragStart = (listName, index) =>
+                (dragState.value = { list: listName, from: index })
+            const onDrop = (listName, toIndex) => {
+                const { list, from } = dragState.value
+                if (list !== listName || from === -1) return
+                const arr = modelForm.value[listName]
+                const [moved] = arr.splice(from, 1)
+                arr.splice(toIndex, 0, moved)
+                dragState.value = { list: null, from: -1 }
+            }
+
+            const buildTemplatePayload = () => ({
+                ...modelForm.value,
+                items: normalizeRows(modelForm.value.items, 'items'),
+                insumos: normalizeRows(modelForm.value.insumos, 'insumos'),
+                opcionais: normalizeRows(modelForm.value.opcionais, 'opcionais'),
+            })
+
             return {
+                onDragStart,
+                onDrop,
+                onQtyChange,
+                onUnitPriceChange,
+                revertPrice,
+                isItemAlreadyAdded,
+                isSupplyAlreadyAdded,
+                isOptionalAlreadyAdded,
+
                 // Estados
                 models,
                 filteredModels,
@@ -3081,5 +3323,177 @@
         .model-card {
             padding: 20px;
         }
+    }
+    /* esconde o preço verde antigo */
+    .item-details .item-price {
+        display: none !important;
+    }
+
+    /* linha de detalhes harmonizada */
+    .item-details {
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    /* campo de preço compacto estilo Propostas */
+    .price-field {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1.5px solid #e1e5e9;
+        border-radius: 8px;
+        background: #fff;
+        height: 30px;
+        padding: 0 8px;
+    }
+    .price-field .prefix {
+        color: #6c757d;
+        font-size: 12px;
+    }
+    .price-field input {
+        width: 110px;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        text-align: right;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 0 2px;
+    }
+    .price-field:focus-within {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+    }
+
+    /* chip “ajustado” */
+    .chip-ajustado {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffe8a1;
+    }
+
+    /* botão de revert */
+    .btn-reset {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 4px 6px;
+        line-height: 1;
+        cursor: pointer;
+    }
+    .btn-reset:hover {
+        background: #f8f9fa;
+    }
+
+    /* garante que o input antigo (se ainda existir) não apareça na direita */
+    .item-controls .price-edit {
+        display: none !important;
+    }
+
+    /* quantidade mantém o layout atual */
+    .quantity-switch {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 4px;
+        border: 1px solid #e9ecef;
+    }
+    .qty-display-input {
+        width: 64px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 14px;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        background: #fff;
+        padding: 6px;
+    }
+    /* Preço ao lado do badge */
+    .item-details {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    /* Usa SUAS classes .price-inline, .currency e .price-input */
+    .price-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1.5px solid #e1e5e9;
+        border-radius: 8px;
+        background: #fff;
+        height: 30px;
+        padding: 0 8px;
+    }
+    .price-inline .currency {
+        color: #6c757d;
+        font-size: 12px;
+    }
+
+    .price-input {
+        width: 110px;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        text-align: right;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 0 2px;
+    }
+    .price-inline:focus-within {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+    }
+
+    /* Chip “ajustado” mais elegante */
+    .chip-ajustado {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffe8a1;
+    }
+
+    /* Botão de revert discreto */
+    .btn-ghost {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 4px 6px;
+        line-height: 1;
+        cursor: pointer;
+    }
+    .btn-ghost:hover {
+        background: #f8f9fa;
+    }
+
+    /* Input de quantidade (você já usa esse class no template) */
+    .qty-display-input {
+        width: 64px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 14px;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        background: #fff;
+        padding: 6px;
+    }
+
+    /* Se ainda existir algum .item-price antigo (verde), esconde */
+    .item-details .item-price {
+        display: none !important;
     }
 </style>
