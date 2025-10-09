@@ -533,7 +533,7 @@ class PDFGenerator {
     const fornecedorRows = [
       {
         left: { label: 'Empresa', value: supplier.nome },
-        right: { label: 'Responsável', value: supplier.vendedor?.nome }
+        right: { label: 'Responsável', value: supplier.contato }
       },
       {
         left: { label: 'Endereço', value: supplier.endereco, line: this.LAYOUT.rowTight },
