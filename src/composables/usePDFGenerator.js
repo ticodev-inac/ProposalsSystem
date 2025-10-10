@@ -44,14 +44,13 @@ export function usePDFGenerator() {
     const data = _formatDateForName(
       pdfData?.event?.data_inicio || pdfData?.metadata?.data_criacao
     );
-    const sistema =
-      pdfData?.metadata?.sistema || pdfData?.event?.sistema || pdfData?.event?.tipo || "";
+
     const agencia =
       pdfData?.event?.empresa_contratante || pdfData?.client?.nome || pdfData?.cliente?.nome || "";
     const cidade =
       pdfData?.event?.cidade || _extractCity(pdfData?.event?.local) || "";
 
-    const parts = [data, _slug(sistema), _slug(agencia), _slug(cidade)].filter(Boolean);
+    const parts = [data, _slug(agencia), _slug(cidade)].filter(Boolean);
 
     if (!parts.length) {
       const today = new Date().toISOString().slice(0, 10);
