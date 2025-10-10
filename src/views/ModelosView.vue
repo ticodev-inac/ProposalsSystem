@@ -1063,7 +1063,7 @@
                 end_time: '',
                 observations: '',
                 // Flags/observações padrão de totais
-                exibir_precos: true,
+                exibir_precos: false,
                 incluir_opcionais: false,
                 total_observations: '',
                 // Listas
@@ -1160,7 +1160,7 @@
                     start_time: '',
                     end_time: '',
                     observations: '',
-                    exibir_precos: true,
+                    exibir_precos: false,
                     incluir_opcionais: false,
                     total_observations: '',
                     items: [],
@@ -1184,7 +1184,7 @@
                     start_time: model.start_time || '',
                     end_time: model.end_time || '',
                     observations: model.observations || '',
-                    exibir_precos: model.exibir_precos ?? true,
+                    exibir_precos: model.exibir_precos ?? false,
                     incluir_opcionais: model.incluir_opcionais ?? false,
                     total_observations: model.total_observations || '',
                     items: normalizeRows(model.items || [], 'items'),
