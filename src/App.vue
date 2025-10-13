@@ -106,8 +106,14 @@
                     <h1 id="pageTitle">{{ pageTitle }}</h1>
                 </div>
                 <div class="header-right">
-                    <div class="user-info">
-                        <span>US</span>
+                  
+                    <div class="header-actions" v-if="isAuthenticated">
+                        <button class="btn-link" @click="onResetPassword" :disabled="resetLoading">
+                            {{ resetLoading ? 'Enviando...' : 'Recuperar senha' }}
+                        </button>
+                        <button class="btn-link logout" @click="onLogout">
+                            Sair
+                        </button>
                     </div>
                 </div>
             </header>
@@ -121,13 +127,15 @@
 
 <script>
     import { ref, computed } from 'vue'
-    import { useRoute } from 'vue-router'
+    import { useRoute, useRouter } from 'vue-router'
     import { useAuthStore } from '@/stores/auth'
+    import { supabase } from '@/services/supabase'
 
     export default {
         name: 'App',
         setup() {
             const route = useRoute()
+            const router = useRouter()
             const sidebarCollapsed = ref(false)
             const auth = useAuthStore()
             const isAuthenticated = computed(() => !!auth.user)
@@ -164,12 +172,44 @@
                 sidebarCollapsed.value = true
             }
 
+            // Botões de ações no header
+            const resetLoading = ref(false)
+
+            const onLogout = async () => {
+                try {
+                    await auth.signOut()
+                    router.push({ name: 'login' })
+                } catch (e) {
+                    alert('Erro ao sair. Tente novamente.')
+                }
+            }
+
+            const onResetPassword = async () => {
+                if (!auth.user?.email) {
+                    alert('Nenhum usuário autenticado encontrado.')
+                    return
+                }
+                resetLoading.value = true
+                try {
+                    const { error } = await supabase.auth.resetPasswordForEmail(auth.user.email)
+                    if (error) throw error
+                    alert(`E-mail de recuperação enviado para ${auth.user.email}.`)
+                } catch (e) {
+                    alert(`Erro ao enviar recuperação: ${e.message || e}`)
+                } finally {
+                    resetLoading.value = false
+                }
+            }
+
             return {
                 sidebarCollapsed,
                 toggleSidebar,
                 pageTitle,
                 isAuthenticated,
                 appVersion,
+                onLogout,
+                onResetPassword,
+                resetLoading,
             }
         },
     }
@@ -367,6 +407,29 @@
     .header-right {
         display: flex;
         align-items: center;
+    }
+    .header-actions {
+        display: flex;
+        gap: 10px;
+        margin-left: 12px;
+    }
+    .btn-link {
+        background: none;
+        border: none;
+        color: #007bff;
+        cursor: pointer;
+        font-weight: 600;
+        padding: 6px 8px;
+        border-radius: 4px;
+    }
+    .btn-link:hover {
+        background-color: #f0f4ff;
+    }
+    .btn-link.logout {
+        color: #d33;
+    }
+    .btn-link.logout:hover {
+        background-color: #fdecec;
     }
 
     .user-info {
