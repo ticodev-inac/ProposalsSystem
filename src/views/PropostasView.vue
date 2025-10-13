@@ -1534,6 +1534,9 @@
 
             // Dados para Total Geral
             const incluirOpcionais = ref(false)
+
+            const exibir_precos = ref(false)
+            
             const discount = ref(0)
             const taxRate = ref(0)
             const totalObservations = ref('')
@@ -2015,11 +2018,7 @@
                 loadClients()
 
                 form.value.exibir_precos =
-                    record.exibir_precos ??
-                    record.incluir_v_un_itens ??
-                    record.incluir_v_un_insumos ??
-                    record.incluir_v_un_opcionais ??
-                    false
+                    record.exibir_precos ?? false
 
                 activeTab.value = 'basic'
                 showModal.value = true
@@ -2125,7 +2124,7 @@
                             status_detalhado: template.status_detalhado || '',
                             total_amount: template.total_amount || 0,
                             total_geral: template.total_geral || 0,
-                            exibir_precos: template.exibir_precos ?? false,
+                            exibir_precos: false,
                             items: template.items || [],
                             insumos: template.insumos || [],
                             opcionais: template.opcionais || [],
