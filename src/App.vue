@@ -132,8 +132,8 @@
             const auth = useAuthStore()
             const isAuthenticated = computed(() => !!auth.user)
 
-            // ✅ Lê da env (fallback para 1.0.0.0)
-            const appVersion = import.meta.env.VITE_APP_VERSION || '1.0.0.0'
+            // Lê da env; se não vier no build, usa versão embutida do package.json; senão fallback padrão
+            const appVersion = import.meta.env.VITE_APP_VERSION || __APP_VERSION__ || '1.0.8'
 
             const toggleSidebar = () => {
                 sidebarCollapsed.value = !sidebarCollapsed.value
