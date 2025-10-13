@@ -1909,6 +1909,15 @@
                     database.setCurrentProposalId(record.id)
                 }
 
+                // Debug: vamos ver o que está vindo do banco
+                console.log('🔍 Debug - Dados da proposta do banco:', {
+                    id: record.id,
+                    exibir_precos: record.exibir_precos,
+                    incluir_v_un_itens: record.incluir_v_un_itens,
+                    incluir_v_un_insumos: record.incluir_v_un_insumos,
+                    incluir_v_un_opcionais: record.incluir_v_un_opcionais
+                })
+
                 // ===== mapeamento (igual você já tinha, mas usando `record`) =====
                 form.value.client_id = record.client_id || null
                 form.value.company_id = record.company_id || null
@@ -2017,8 +2026,11 @@
                 await loadSuppliers() // <- garante options prontos
                 loadClients()
 
-                form.value.exibir_precos =
-                    record.exibir_precos ?? false
+                // Garantir que o valor seja exatamente o que está no campo exibir_precos
+                form.value.exibir_precos = record.exibir_precos === true || record.exibir_precos === 'true'
+                
+                // Debug: vamos ver o que foi definido no form
+                console.log('🔍 Debug - Valor definido no form:', form.value.exibir_precos)
 
                 activeTab.value = 'basic'
                 showModal.value = true
@@ -2554,8 +2566,9 @@
                 // Se tem templateId na query, abrir modal automaticamente
                 if (templateId) {
                     await openCreateModal()
-                } else {
-                    checkTemplateUsage() // Verificar uso de modelo
+                } else if (!isEditing.value) {
+                    // Só verificar uso de modelo se NÃO estiver editando uma proposta
+                    checkTemplateUsage()
                 }
             })
 
