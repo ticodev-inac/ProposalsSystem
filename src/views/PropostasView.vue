@@ -1286,16 +1286,7 @@
                             </div>
 
                             <!-- Observações -->
-                            <div class="form-group">
-                                <label for="totalObservations">Observações sobre o Total</label>
-                                <textarea
-                                    id="totalObservations"
-                                    v-model="totalObservations"
-                                    rows="3"
-                                    placeholder="Observações adicionais sobre valores, descontos, etc..."
-                                    class="form-control"
-                                ></textarea>
-                            </div>
+
                         </div>
                     </div>
 
@@ -1993,7 +1984,6 @@
 
                 // Carregar dados de totais
                 incluirOpcionais.value = proposal.incluir_opcionais || false
-                totalObservations.value = proposal.total_observations || ''
 
                 // Carregar condições gerais (pode ser string ou objeto JSON)
                 try {
@@ -2192,7 +2182,6 @@
                     condicoes_gerais: condicoesGerais.value || '',
 
                     incluir_opcionais: incluirOpcionais.value,
-                    total_observations: totalObservations.value || '',
                     observations: form.value.observations || '',
 
                     // flags de exibição (principal + compat legada)
@@ -2239,7 +2228,6 @@
                 'condicoes_gerais',
                 'politicas',
                 'supplier_id', // ✅ garante update
-                'total_observations',
                 'observations',
             ]
 

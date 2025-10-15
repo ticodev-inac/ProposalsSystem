@@ -419,6 +419,11 @@ class PDFGenerator {
       // TOTAL GERAL (apenas o banner)
       this._addDetailedTotalsSection(pdfData.totals, pdfData.optionals);
 
+      // 👇 Observações (Dados Básicos) — banner azul + parágrafos justificados
+      if (pdfData.texts?.observations) {
+        this._addGreySection('Observações', pdfData.texts.observations);
+      }
+
       if (pdfData.texts?.conditions) {
         this._addConditionsSection(pdfData.texts.conditions);
       }

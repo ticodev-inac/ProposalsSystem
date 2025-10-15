@@ -1065,7 +1065,6 @@
                 // Flags/observações padrão de totais
                 exibir_precos: false,
                 incluir_opcionais: false,
-                total_observations: '',
                 // Listas
                 items: [],
                 insumos: [],
@@ -1162,7 +1161,6 @@
                     observations: '',
                     exibir_precos: false,
                     incluir_opcionais: false,
-                    total_observations: '',
                     items: [],
                     insumos: [],
                     opcionais: [],
@@ -1186,7 +1184,6 @@
                     observations: model.observations || '',
                     exibir_precos: model.exibir_precos ?? false,
                     incluir_opcionais: model.incluir_opcionais ?? false,
-                    total_observations: model.total_observations || '',
                     items: normalizeRows(model.items || [], 'items'),
                     insumos: normalizeRows(model.insumos || [], 'insumos'),
                     opcionais: normalizeRows(model.opcionais || [], 'opcionais'),

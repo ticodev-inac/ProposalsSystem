@@ -155,6 +155,7 @@ class PDFDataService {
                 texts: {
                     policy,
                     conditions, // agora é objeto com as 5 chaves acima
+                    observations: this._formatTextContent(proposal.observations), // 👈 novo
                 },
 
                 display: {
