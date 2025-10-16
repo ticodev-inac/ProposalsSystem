@@ -76,7 +76,6 @@ class TempProposalService {
         const proposalData = {
             // Dados básicos do formulário inicial
             user_id: tempData.basicInfo?.user_id,
-            company_id: tempData.basicInfo?.company_id,
             client_id: tempData.basicInfo?.client_id,
             proposal_number: tempData.basicInfo?.proposal_number,
             title: tempData.basicInfo?.title,

@@ -209,7 +209,6 @@ class TemplatesService {
 
                 // Copiar campos da proposta
                 client_id: proposal.client_id,
-                company_id: proposal.company_id,
                 title: proposal.title,
                 event_type: proposal.event_type,
                 participants_count: proposal.participants_count,

@@ -149,6 +149,21 @@
                         <i v-else class="fa-solid fa-spinner fa-spin"></i>
                         <span>{{ isGenerating ? 'Gerando...' : 'PDF' }}</span>
                     </button>
+                    <!-- Novo botão: Duplicar -->
+                    <button
+                        @click.stop="duplicateProposal(proposal)"
+                        class="action-btn copy-btn"
+                        :disabled="duplicatingId === proposal.id"
+                        :title="
+                            duplicatingId === proposal.id ? 'Duplicando...' : 'Duplicar proposta'
+                        "
+                    >
+                        <i v-if="duplicatingId !== proposal.id" class="icon-copy"></i>
+                        <i v-else class="icon-link"></i>
+                        <span>
+                            {{ duplicatingId === proposal.id ? 'Duplicando...' : 'Duplicar' }}
+                        </span>
+                    </button>
 
                     <button
                         @click.stop="deleteProposal(proposal.id)"
@@ -1284,9 +1299,6 @@
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Observações -->
-
                         </div>
                     </div>
 
@@ -1481,6 +1493,12 @@
             const searchTerm = ref('')
             const loading = ref(false)
             const saving = ref(false)
+            const duplicatingId = ref(null)
+
+            // Validação simples de UUID (v4/v5)
+            const isUUID = (v) =>
+                typeof v === 'string' &&
+                /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v)
 
             const route = useRoute()
             const router = useRouter()
@@ -1492,11 +1510,6 @@
             // Verificar se está usando um modelo
             const templateId = route.query.useTemplate
 
-            // Fallback para company_id quando o cliente não tiver esse campo
-            const getCompanyIdFallback = () =>
-                localStorage.getItem('company_id') ||
-                import.meta.env.VITE_DEFAULT_COMPANY_ID ||
-                null
 
             // Modal state
             const showModal = ref(false)
@@ -1527,7 +1540,6 @@
             const incluirOpcionais = ref(false)
 
             const exibir_precos = ref(false)
-            
             const discount = ref(0)
             const taxRate = ref(0)
             const totalObservations = ref('')
@@ -1554,7 +1566,6 @@
             // Form data
             const form = ref({
                 client_id: null,
-                company_id: null,
                 client_name: '',
                 proposal_number: '',
                 title: '',
@@ -1608,7 +1619,6 @@
             const resetForm = () => {
                 form.value = {
                     client_id: null,
-                    company_id: null,
                     client_name: '',
                     proposal_number: '',
                     title: '',
@@ -1906,12 +1916,11 @@
                     exibir_precos: record.exibir_precos,
                     incluir_v_un_itens: record.incluir_v_un_itens,
                     incluir_v_un_insumos: record.incluir_v_un_insumos,
-                    incluir_v_un_opcionais: record.incluir_v_un_opcionais
+                    incluir_v_un_opcionais: record.incluir_v_un_opcionais,
                 })
 
                 // ===== mapeamento (igual você já tinha, mas usando `record`) =====
                 form.value.client_id = record.client_id || null
-                form.value.company_id = record.company_id || null
                 form.value.proposal_number = record.proposal_number || ''
                 form.value.title = record.title || ''
                 form.value.observations = record.description || ''
@@ -2017,8 +2026,9 @@
                 loadClients()
 
                 // Garantir que o valor seja exatamente o que está no campo exibir_precos
-                form.value.exibir_precos = record.exibir_precos === true || record.exibir_precos === 'true'
-                
+                form.value.exibir_precos =
+                    record.exibir_precos === true || record.exibir_precos === 'true'
+
                 // Debug: vamos ver o que foi definido no form
                 console.log('🔍 Debug - Valor definido no form:', form.value.exibir_precos)
 
@@ -2084,7 +2094,6 @@
 
             const selectClient = (client) => {
                 form.value.client_id = client.id
-                form.value.company_id = client.company_id || getCompanyIdFallback()
                 form.value.client_name = client.company_name
 
                 // Preenche/atualiza os dados de contato SOMENTE nesta proposta
@@ -2105,7 +2114,6 @@
                         // Pré-preencher formulário com dados do modelo
                         form.value = {
                             client_id: template.client_id,
-                            company_id: template.company_id,
                             client_name: '', // Será preenchido ao carregar cliente
                             proposal_number: '', // Será gerado automaticamente
                             title: template.title || '',
@@ -2148,7 +2156,6 @@
 
                 return {
                     client_id: form.value.client_id,
-                    company_id: form.value.company_id ?? getCompanyIdFallback(),
                     title: form.value.title,
                     description: form.value.observations || '',
                     status: form.value.status,
@@ -2495,6 +2502,97 @@
                 }
             }
 
+            const duplicateProposal = async (proposal) => {
+                if (!proposal?.id || duplicatingId.value) return
+                duplicatingId.value = proposal.id
+                try {
+                    const { data: authData } = await supabase.auth.getUser()
+                    const userId = authData?.user?.id || null
+
+                    // Normalizações de IDs
+                    const clientIdNormalized = normalizeId(proposal.client_id)
+                    
+
+                    // Próximo número baseado no cliente normalizado
+                    let nextNumber = null
+                    try {
+                        nextNumber = await ProposalsService.getNextProposalNumber(clientIdNormalized)
+                    } catch (_) {}
+
+                    const toJSON = (val, def = []) =>
+                        typeof val === 'string' ? val : JSON.stringify(val || def)
+
+                    const exibir =
+                        proposal.exibir_precos === true ||
+                        String(proposal.exibir_precos || '').toLowerCase() === 'true'
+
+                    const payload = {
+                        client_id: clientIdNormalized,
+                        proposal_number: nextNumber || null,
+                        title: `${proposal.title || 'Proposta'} (Cópia)`,
+                        description: proposal.description || '',
+                        status: 'draft',
+                        status_detalhado: proposal.status_detalhado || null,
+                        total_amount: proposal.total_amount || 0,
+                        total_geral: proposal.total_geral || 0,
+                        event_type: proposal.event_type,
+                        participants_count: proposal.participants_count,
+                        start_date: proposal.start_date || null,
+                        end_date: proposal.end_date || null,
+                        start_time: proposal.start_time || null,
+                        end_time: proposal.end_time || null,
+                        location: proposal.location,
+                        contractor_name: proposal.contractor_name,
+                        requester_name: proposal.requester_name,
+                        phone: proposal.phone,
+                        email: proposal.email,
+                        supplier_id: normalizeId(proposal.supplier_id),
+
+                        // Campos JSON
+                        items: toJSON(proposal.items),
+                        insumos: toJSON(proposal.insumos),
+                        opcionais: toJSON(proposal.opcionais),
+                        opcional_nao_inclusos: JSON.stringify([]),
+                        dados_fornecedor: toJSON(proposal.dados_fornecedor, {}),
+                        politicas: toJSON(proposal.politicas, []),
+
+                        // Texto
+                        condicoes_gerais:
+                            typeof proposal.condicoes_gerais === 'string'
+                                ? proposal.condicoes_gerais
+                                : JSON.stringify(proposal.condicoes_gerais || ''),
+                        incluir_opcionais: !!proposal.incluir_opcionais,
+                        observations: proposal.observations || proposal.description || '',
+
+                        // flags de exibição
+                        exibir_precos: exibir,
+                        incluir_v_un_itens: exibir,
+                        incluir_v_un_insumos: exibir,
+                        incluir_v_un_opcionais: exibir,
+
+                        user_id: userId,
+                    }
+
+                    const newRecord = await ProposalsService.createProposal(payload)
+
+                    // Atualiza lista local
+                    if (Array.isArray(database.proposals)) {
+                        database.proposals.unshift(newRecord)
+                    }
+
+                    alert('Proposta duplicada com sucesso!')
+
+                    // Recarrega da API e reaplica o filtro após confirmar
+                    await loadProposals()
+                    filterProposals()
+                } catch (error) {
+                    console.error('Erro ao duplicar proposta:', error)
+                    alert('Erro ao duplicar proposta: ' + (error.message || error))
+                } finally {
+                    duplicatingId.value = null
+                }
+            }
+
             // Verificar se está usando um modelo ao montar o componente
             const checkTemplateUsage = () => {
                 const tempData = TempProposalService.getTempData()
@@ -2506,7 +2604,6 @@
 
                     form.value = {
                         client_id: basicInfo.client_id || null,
-                        company_id: basicInfo.company_id || null,
                         client_name: '', // Será preenchido ao carregar cliente
                         proposal_number: '', // Sempre vazio para nova proposta
                         title: basicInfo.title || '',
@@ -3474,6 +3571,8 @@
                 deleteProposal,
                 editProposal,
                 exportToPDF,
+                duplicatingId,
+                duplicateProposal,
                 isGenerating,
                 generationError,
                 updateProposalStatus,
@@ -4292,6 +4391,10 @@
     }
     .icon-link::before {
         content: '🔗';
+    }
+    /* Novo: ícone para duplicar */
+    .icon-copy::before {
+        content: '📑';
     }
     .icon-trash::before {
         content: '🗑️';
@@ -6077,6 +6180,10 @@
     }
     .icon-link::before {
         content: '🔗';
+    }
+    /* Novo: ícone para duplicar */
+    .icon-copy::before {
+        content: '📑';
     }
     .icon-trash::before {
         content: '🗑️';
