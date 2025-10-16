@@ -796,6 +796,13 @@
                     <div v-if="activeTab === 'items'" class="tab-pane">
                         <div class="section-header">
                             <h5>Itens da Proposta</h5>
+                            <input
+                                type="text"
+                                class="banner-title-input"
+                                v-model="form.items_section_title"
+                                placeholder="Prestações de Serviços"
+                                title="Nome do banner acima da tabela de itens"
+                            />
                             <button @click="openItemModal" class="btn btn-sm btn-primary">
                                 <i class="fa-solid fa-plus"></i>
                                 Adicionar Item
@@ -1590,7 +1597,8 @@
                 insumos: [],
                 opcionais: [],
                 exibir_precos: false, // NEW
-            })
+                items_section_title: 'Prestações de Serviço',
+        })
 
             // impede salvar enquanto estamos carregando/mesclando dados
             let initializing = false
@@ -1643,6 +1651,7 @@
                     insumos: [],
                     opcionais: [],
                     exibir_precos: false, // NEW
+                    items_section_title: 'Prestações de Serviço',
                 }
                 activeTab.value = 'basic'
             }
@@ -1939,6 +1948,22 @@
                 form.value.status_detalhado = record.status_detalhado || ''
                 form.value.total_amount = record.total_amount ?? 0
                 form.value.total_geral = record.total_geral ?? 0
+                form.value.items_section_title = (() => {
+                    // Tenta coluna dedicada (se algum dia for criada)
+                    if (record.items_section_title && String(record.items_section_title).trim() !== '') {
+                        return record.items_section_title
+                    }
+                    // Tenta pegar do JSON dados_fornecedor
+                    try {
+                        const df = typeof record.dados_fornecedor === 'string'
+                            ? JSON.parse(record.dados_fornecedor || '{}')
+                            : (record.dados_fornecedor || {})
+                        if (df?.items_section_title && String(df.items_section_title).trim() !== '') {
+                            return df.items_section_title
+                        }
+                    } catch {}
+                    return 'Prestações de Serviço'
+                })()
 
                 // Carregar nome do cliente pelo ID
                 if (proposal.client_id) {
@@ -2135,6 +2160,7 @@
                             total_amount: template.total_amount || 0,
                             total_geral: template.total_geral || 0,
                             exibir_precos: false,
+                            items_section_title: '',
                             items: template.items || [],
                             insumos: template.insumos || [],
                             opcionais: template.opcionais || [],
@@ -2182,7 +2208,9 @@
                     insumos: JSON.stringify(form.value.insumos || []),
                     opcionais: JSON.stringify(form.value.opcionais || []),
                     opcional_nao_inclusos: JSON.stringify([]),
-                    dados_fornecedor: JSON.stringify({}),
+                    dados_fornecedor: JSON.stringify({
+                        items_section_title: form.value.items_section_title,
+                    }),
                     politicas: JSON.stringify(politicas.value || []),
 
                     // Campo text (não JSON)
@@ -2625,6 +2653,7 @@
                         status_detalhado: basicInfo.status_detalhado || '',
                         total_amount: basicInfo.total_amount || 0,
                         total_geral: basicInfo.total_geral || 0,
+                        items_section_title: '',
                         items: [],
                         insumos: [],
                         opcionais: [],
@@ -4779,6 +4808,7 @@
         border-bottom: 1px solid #e0e0e0;
     }
 
+
     .section-header h5 {
         margin: 0;
         color: #333;
@@ -6184,5 +6214,15 @@
     .item-selection-card.disabled {
         cursor: not-allowed;
         opacity: 0.8;
+    }
+        /* Estilos: campo de título do banner dos itens na header */
+    .section-header .banner-title-input {
+        margin-left: 12px;
+        padding: 6px 10px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        min-width: 240px;
+        max-width: 320px;
+        font-size: 14px;
     }
 </style>

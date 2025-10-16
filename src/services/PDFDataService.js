@@ -135,6 +135,21 @@ class PDFDataService {
                 return def
             }
 
+            const bannerTitle = (() => {
+                try {
+                    const df = typeof proposal.dados_fornecedor === 'string'
+                        ? JSON.parse(proposal.dados_fornecedor || '{}')
+                        : (proposal.dados_fornecedor || {})
+                    return (
+                        proposal.items_section_title ||
+                        df.items_section_title ||
+                        'Prestações de Serviços'
+                    )
+                } catch {
+                    return proposal.items_section_title || 'Prestações de Serviços'
+                }
+            })()
+
             const normalizedData = {
                 // ✅ passa clientData para os normalizadores
                 metadata: this._normalizeMetadata(proposal, clientData),
@@ -170,6 +185,7 @@ class PDFDataService {
                         return !legacy.includes(false)
                     })(),
                     show_watermark: proposal.status !== 'finalizada',
+                    items_title: bannerTitle,
                 },
             }
 
