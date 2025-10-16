@@ -4420,6 +4420,8 @@
 
         .proposal-card {
             margin: 0 10px;
+            min-height: 280px;
+            padding: 12px;
         }
 
         .proposal-footer {
@@ -5917,26 +5919,17 @@
     /* =========================
    CARDS (grid + card + ações) — CONSOLIDADO
    ========================= */
+    /* Grid responsivo por largura do container */
     .proposals-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
         gap: 16px;
         margin-top: 16px;
         align-items: stretch;
     }
-    @media (max-width: 1400px) {
+    @media (max-width: 360px) {
         .proposals-grid {
-            grid-template-columns: repeat(3, 1fr);
-        }
-    }
-    @media (max-width: 1024px) {
-        .proposals-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-    @media (max-width: 640px) {
-        .proposals-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr; /* segurança extra em telas muito pequenas */
         }
     }
 
