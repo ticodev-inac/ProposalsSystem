@@ -1311,26 +1311,30 @@
 
                     <!-- Aba: Condições Gerais -->
                     <div v-if="activeTab === 'conditions'" class="tab-pane">
-                        <div class="section-header">
+                        <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
                             <h5>Condições Gerais</h5>
+                            <div>
+                                <button v-if="!editingConditions" class="btn btn-sm btn-outline-primary" @click="startEditConditions">
+                                    Editar
+                                </button>
+                                <div v-else>
+                                    <button class="btn btn-sm btn-secondary me-2" @click="cancelEditConditions">Cancelar</button>
+                                    <button class="btn btn-sm btn-primary" @click="saveConditionsForProposal">Salvar Alterações</button>
+                                </div>
+                            </div>
                         </div>
 
-                        <div v-if="condicoesGerais" class="conditions-content">
+                        <!-- Exibição -->
+                        <div v-if="!editingConditions && condicoesGerais" class="conditions-content">
                             <div class="config-section">
-                                <div
-                                    class="config-item"
-                                    v-if="condicoesGerais.prazoValidadeProposta"
-                                >
+                                <div class="config-item" v-if="condicoesGerais.prazoValidadeProposta">
                                     <label>Prazo de Validade da Proposta:</label>
                                     <div class="config-value">
                                         {{ condicoesGerais.prazoValidadeProposta }}
                                     </div>
                                 </div>
 
-                                <div
-                                    class="config-item"
-                                    v-if="condicoesGerais.prazoEntregaExecucao"
-                                >
+                                <div class="config-item" v-if="condicoesGerais.prazoEntregaExecucao">
                                     <label>Prazo de Entrega/Execução:</label>
                                     <div class="config-value">
                                         {{ condicoesGerais.prazoEntregaExecucao }}
@@ -1351,6 +1355,31 @@
                             </div>
                         </div>
 
+                        <!-- Edição somente para esta proposta -->
+                        <div v-else-if="editingConditions" class="conditions-content">
+                            <div class="config-section">
+                                <div class="config-item">
+                                    <label>Prazo de Validade da Proposta:</label>
+                                    <input class="form-control" v-model="condicoesGeraisEdit.prazoValidadeProposta" />
+                                </div>
+
+                                <div class="config-item">
+                                    <label>Prazo de Entrega/Execução:</label>
+                                    <input class="form-control" v-model="condicoesGeraisEdit.prazoEntregaExecucao" />
+                                </div>
+
+                                <div class="config-item">
+                                    <label>Garantia:</label>
+                                    <input class="form-control" v-model="condicoesGeraisEdit.garantia" />
+                                </div>
+
+                                <div class="config-item">
+                                    <label>Condições Especiais:</label>
+                                    <textarea class="form-control" rows="6" v-model="condicoesGeraisEdit.condicoesEspeciais"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
                         <div v-else class="empty-section">
                             <i class="fa-solid fa-file-contract"></i>
                             <p>Nenhuma condição configurada</p>
@@ -1363,11 +1392,21 @@
 
                     <!-- Aba: Política Contratação -->
                     <div v-if="activeTab === 'policies'" class="tab-pane">
-                        <div class="section-header">
+                        <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
                             <h5>Política de Contratação</h5>
+                            <div>
+                                <button v-if="!editingPolicies" class="btn btn-sm btn-outline-primary" @click="startEditPolicies">
+                                    Editar
+                                </button>
+                                <div v-else>
+                                    <button class="btn btn-sm btn-secondary me-2" @click="cancelEditPolicies">Cancelar</button>
+                                    <button class="btn btn-sm btn-primary" @click="savePoliciesForProposal">Salvar Alterações</button>
+                                </div>
+                            </div>
                         </div>
 
-                        <div v-if="politicas && politicas.length > 0" class="policies-content">
+                        <!-- Exibição -->
+                        <div v-if="!editingPolicies && politicas && politicas.length > 0" class="policies-content">
                             <div
                                 v-for="(politica, index) in politicas"
                                 :key="politica.id || index"
@@ -1378,6 +1417,22 @@
                                 </div>
                                 <div class="policy-content">
                                     <p>{{ politica.conteudo }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Edição somente para esta proposta -->
+                        <div v-else-if="editingPolicies" class="policies-content">
+                            <div
+                                v-for="(politica, index) in politicasEdit"
+                                :key="politica.id || index"
+                                class="policy-section"
+                            >
+                                <div class="policy-header">
+                                    <input class="form-control" placeholder="Título" v-model="politica.titulo" />
+                                </div>
+                                <div class="policy-content">
+                                    <textarea class="form-control" rows="6" placeholder="Conteúdo" v-model="politica.conteudo"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -1467,7 +1522,7 @@
                     <button
                         @click="saveProposal"
                         class="btn btn-primary"
-                        :disabled="!form.client_name || !form.title || saving"
+                        :disabled="!form.client_name || !form.title || saving || areConditionsDirty || arePoliciesDirty"
                     >
                         <i v-if="saving" class="fa-solid fa-spinner fa-spin"></i>
                         {{ isEditing ? 'Salvar Alterações' : 'Criar Proposta' }}
@@ -1566,6 +1621,85 @@
             // Dados para Condições Gerais e Políticas
             const condicoesGerais = ref(null)
             const politicas = ref([])
+
+            // Estados de edição para Condições e Políticas (somente para esta proposta)
+            const editingConditions = ref(false)
+            const condicoesGeraisEdit = ref({
+                prazoValidadeProposta: '',
+                prazoEntregaExecucao: '',
+                garantia: '',
+                condicoesEspeciais: '',
+            })
+
+            const startEditConditions = () => {
+                editingConditions.value = true
+                condicoesGeraisEdit.value = {
+                    prazoValidadeProposta:
+                        condicoesGerais.value?.prazoValidadeProposta || '',
+                    prazoEntregaExecucao:
+                        condicoesGerais.value?.prazoEntregaExecucao || '',
+                    garantia: condicoesGerais.value?.garantia || '',
+                    condicoesEspeciais: condicoesGerais.value?.condicoesEspeciais || '',
+                }
+            }
+
+            const cancelEditConditions = () => {
+                editingConditions.value = false
+            }
+
+            const saveConditionsForProposal = async () => {
+                // aplica no estado da proposta atual
+                condicoesGerais.value = { ...condicoesGeraisEdit.value }
+                editingConditions.value = false
+
+                // persiste apenas se estiver editando uma proposta existente
+                if (isEditing.value && currentProposal.value?.id) {
+                    try {
+                        const patch = await buildPartialUpdate()
+                        await supabase
+                            .from('proposals')
+                            .update(patch)
+                            .eq('id', currentProposal.value.id)
+                    } catch (err) {
+                        console.error('Erro ao salvar condições gerais da proposta:', err)
+                        alert('Erro ao salvar condições gerais')
+                    }
+                }
+            }
+
+            const editingPolicies = ref(false)
+            const politicasEdit = ref([])
+
+            const startEditPolicies = () => {
+                editingPolicies.value = true
+                politicasEdit.value = Array.isArray(politicas.value)
+                    ? JSON.parse(JSON.stringify(politicas.value))
+                    : []
+            }
+
+            const cancelEditPolicies = () => {
+                editingPolicies.value = false
+            }
+
+            const savePoliciesForProposal = async () => {
+                // aplica no estado da proposta atual
+                politicas.value = Array.isArray(politicasEdit.value) ? [...politicasEdit.value] : []
+                editingPolicies.value = false
+
+                // persiste apenas se estiver editando uma proposta existente
+                if (isEditing.value && currentProposal.value?.id) {
+                    try {
+                        const patch = await buildPartialUpdate()
+                        await supabase
+                            .from('proposals')
+                            .update(patch)
+                            .eq('id', currentProposal.value.id)
+                    } catch (err) {
+                        console.error('Erro ao salvar políticas da proposta:', err)
+                        alert('Erro ao salvar políticas')
+                    }
+                }
+            }
 
             // Dados para Fornecedor
             const suppliers = ref([])
@@ -2213,8 +2347,11 @@
                     }),
                     politicas: JSON.stringify(politicas.value || []),
 
-                    // Campo text (não JSON)
-                    condicoes_gerais: condicoesGerais.value || '',
+                    // Envia condicoes_gerais como string para compatibilidade
+                    condicoes_gerais:
+                        typeof condicoesGerais.value === 'string'
+                            ? condicoesGerais.value
+                            : JSON.stringify(condicoesGerais.value || ''),
 
                     incluir_opcionais: incluirOpcionais.value,
                     observations: form.value.observations || '',
@@ -2269,6 +2406,14 @@
             // Comparação simples e segura (null/undefined/objetos)
             const isSame = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 
+            // Dirty flags para impedir salvar com edições não confirmadas
+            const areConditionsDirty = computed(() =>
+                editingConditions.value && !isSame(condicoesGeraisEdit.value, condicoesGerais.value)
+            )
+            const arePoliciesDirty = computed(() =>
+                editingPolicies.value && !isSame(politicasEdit.value, politicas.value)
+            )
+
             // Monta um update com somente os campos alterados
             const buildPartialUpdate = async () => {
                 const next = await buildDbPayload()
@@ -2308,6 +2453,18 @@
             }
 
             const saveProposal = async () => {
+                // Bloqueio: existem edições não salvas nas abas Condições/Política?
+                if (editingConditions.value && !isSame(condicoesGeraisEdit.value, condicoesGerais.value)) {
+                    activeTab.value = 'conditions'
+                    alert('Salve as Condições Gerais antes de salvar a proposta.')
+                    return
+                }
+                if (editingPolicies.value && !isSame(politicasEdit.value, politicas.value)) {
+                    activeTab.value = 'policies'
+                    alert('Salve a Política de Contratação antes de salvar a proposta.')
+                    return
+                }
+
                 try {
                     saving.value = true
 
@@ -2370,6 +2527,18 @@
             // Nova função: Salvar e Sair (sem prosseguir para próxima etapa)
             // Salvar e Sair (sem navegar para a próxima etapa)
             const saveAndExit = async () => {
+                // Mesmo bloqueio para o fluxo "Salvar e Sair"
+                if (editingConditions.value && !isSame(condicoesGeraisEdit.value, condicoesGerais.value)) {
+                    activeTab.value = 'conditions'
+                    alert('Salve as Condições Gerais antes de salvar a proposta.')
+                    return
+                }
+                if (editingPolicies.value && !isSame(politicasEdit.value, politicas.value)) {
+                    activeTab.value = 'policies'
+                    alert('Salve a Política de Contratação antes de salvar a proposta.')
+                    return
+                }
+
                 try {
                     saving.value = true
 
@@ -3714,7 +3883,22 @@
                 totals,
                 counts,
                 condicoesGerais,
+                // Edição de condições gerais
+                editingConditions,
+                condicoesGeraisEdit,
+                startEditConditions,
+                cancelEditConditions,
+                saveConditionsForProposal,
+                areConditionsDirty,
+
                 politicas,
+                // Edição de políticas
+                editingPolicies,
+                politicasEdit,
+                startEditPolicies,
+                cancelEditPolicies,
+                savePoliciesForProposal,
+                arePoliciesDirty,
                 suppliers,
                 selectedSupplier,
                 subtotal,

@@ -81,20 +81,33 @@ class PDFDataService {
             const parsedSupplies = this._parseIfString(proposal.insumos, [])
             const parsedOptionals = this._parseIfString(proposal.opcionais, [])
 
-            // --- Política (mantém como está) ---
-            let policy = this._formatTextContent(proposal.politica)
-            if (!policy) {
-                try {
-                    const fixoPolicies = await FixoService.getPoliticaContratacao()
-                    policy = this._formatTextContent(fixoPolicies) || ''
-                } catch {
-                    policy = ''
+            // ✅ Preferir dados salvos na proposta
+            const proposalConditionsRaw = this._parseIfString(proposal.condicoes_gerais, null)
+            const proposalPolicies = this._parseIfString(proposal.politicas, [])
+
+            // --- Política de Contratação: proposta > fixo ---
+            let policy = ''
+            if (Array.isArray(proposalPolicies) && proposalPolicies.length > 0) {
+                // Pode ser array de objetos { titulo, conteudo }; o gerador normaliza
+                policy = proposalPolicies
+            } else {
+                // compat: string antiga em proposal.politica
+                const fallbackText = this._formatTextContent(proposal.politica)
+                if (fallbackText) {
+                    policy = fallbackText
+                } else {
+                    try {
+                        const fixoPolicies = await FixoService.getPoliticaContratacao()
+                        policy = this._formatTextContent(fixoPolicies) || ''
+                    } catch {
+                        policy = ''
+                    }
                 }
             }
 
-            // --- Condições Gerais + Forma de Pagamento vindas do FIXO ---
+            // --- Condições Gerais: proposta > fixo ---
             let fixoConditionsRaw = await FixoService.getCondicoesGerais()
-            let fixoPaymentRaw = await FixoService.getFormasPagamento?.() // se já criou no seu FixoService
+            let fixoPaymentRaw = await FixoService.getFormasPagamento?.() // opcional
 
             const fixoCond =
                 typeof fixoConditionsRaw === 'string'
@@ -106,8 +119,14 @@ class PDFDataService {
                     ? JSON.parse(fixoPaymentRaw || '{}') || {}
                     : fixoPaymentRaw || {}
 
-            // 1ª preferência: o que vier salvo na proposta (se você tiver esses campos)
-            // 2ª preferência: o que está no FIXO – aba Formas de Pagamento
+            // Se condicoes_gerais vier como string, assume que é texto das "Condições Especiais"
+            const proposalCond =
+                proposalConditionsRaw && typeof proposalConditionsRaw === 'object'
+                    ? proposalConditionsRaw
+                    : (typeof proposalConditionsRaw === 'string' && proposalConditionsRaw.trim()
+                        ? { condicoesEspeciais: proposalConditionsRaw.trim() }
+                        : null)
+
             const formaPagamentoText =
                 (proposal.formas_pagamento && String(proposal.formas_pagamento).trim()) ||
                 fixoPay.personalizada ||
@@ -115,13 +134,23 @@ class PDFDataService {
                 fixoPay.opcaoRapida ||
                 ''
 
-            // Monta objeto para a seção “Condições Gerais”
+            const sourceCond = proposalCond || fixoCond || {}
+
             const conditions = {
                 forma_pagamento: formaPagamentoText || '—',
-                validade: proposal.prazo_validade || fixoCond.prazoValidadeProposta || '—',
-                execucao: proposal.prazo_execucao || fixoCond.prazoEntregaExecucao || '—',
-                garantia: proposal.garantia || fixoCond.garantia || '—',
-                especiais: fixoCond.condicoesEspeciais || '', // texto livre (linhas/bullets)
+                validade:
+                    sourceCond.prazoValidadeProposta ||
+                    proposal.prazo_validade ||
+                    '—',
+                execucao:
+                    sourceCond.prazoEntregaExecucao ||
+                    proposal.prazo_execucao ||
+                    '—',
+                garantia:
+                    sourceCond.garantia ||
+                    proposal.garantia ||
+                    '—',
+                especiais: sourceCond.condicoesEspeciais || '',
             }
 
             const toBool = (v, def = undefined) => {
