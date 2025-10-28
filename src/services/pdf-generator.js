@@ -595,6 +595,63 @@ class PDFGenerator {
     return s !== String(text).trim() ? (s.slice(0, -1) + '…') : s;
   }
 
+  // NOVO: quebra de texto balanceada para evitar linhas com 1 palavra (“órfãs”)
+  _splitTextNoOrphans(text, maxWidth, fontSize, minTailRatio = 0.35, minWordsPerLine = 2) {
+    const doc = this.doc;
+    const prevFS = doc.getFontSize();
+    if (fontSize) doc.setFontSize(fontSize);
+
+    const initial = doc.splitTextToSize(String(text || '').trim(), maxWidth);
+    let lines = initial.map(l => l.trim());
+    let wordsLines = lines.map(l => l.split(/\s+/).filter(Boolean));
+    const widthOf = (arr) => doc.getTextWidth(arr.join(' '));
+
+    // Corrige linhas no meio com apenas uma palavra (pega do início da próxima linha)
+    for (let i = 0; i < wordsLines.length - 1; i++) {
+      const cur = wordsLines[i], next = wordsLines[i + 1];
+      if (cur.length === 1 && next.length >= 2) {
+        const candidateCur = [...cur, next[0]];
+        const candidateNext = next.slice(1);
+        if (widthOf(candidateCur) <= maxWidth && widthOf(candidateNext) <= maxWidth) {
+          wordsLines[i] = candidateCur;
+          wordsLines[i + 1] = candidateNext;
+        }
+      }
+    }
+
+    // Rebalanceia última linha muito curta ou com 1 palavra
+    if (wordsLines.length >= 2) {
+      const lastIdx = wordsLines.length - 1;
+      const prevIdx = lastIdx - 1;
+
+      const tryMoveFromPrev = () => {
+        if (wordsLines[prevIdx].length > minWordsPerLine) {
+          const moved = wordsLines[prevIdx].pop();
+          const candidateLast = [...wordsLines[lastIdx], moved];
+          if (widthOf(candidateLast) <= maxWidth) {
+            wordsLines[lastIdx] = candidateLast;
+            return true;
+          } else {
+            // revert
+            wordsLines[prevIdx].push(moved);
+          }
+        }
+        return false;
+      };
+
+      // mínimo de palavras na última linha
+      while (wordsLines[lastIdx].length < minWordsPerLine && tryMoveFromPrev()) {}
+
+      // ratio mínimo de largura na última linha
+      const lastW = widthOf(wordsLines[lastIdx]);
+      if (lastW < maxWidth * minTailRatio) tryMoveFromPrev();
+    }
+
+    const finalLines = wordsLines.map(arr => arr.join(' '));
+    doc.setFontSize(prevFS);
+    return finalLines;
+  }
+
 
   _addItemsSection(items, title, subtotalLabel, subtotalValue, opts = {}) {
   this._checkPageBreak(28);
@@ -637,6 +694,7 @@ class PDFGenerator {
     : (unitOnly ? [['Item', 'Qtd', 'Valor Unit.']]
                 : [['Item', 'Qtd', 'Valor Unit.', 'Subtotal']]);
 
+  // >>> Ajuste de larguras para dar mais espaço ao "Item" quando há preços
   const columnStyles = !showPriceCols
     ? {
         0: { cellWidth: tableW * 0.82, halign: 'left',  valign: 'middle' },
@@ -644,15 +702,15 @@ class PDFGenerator {
       }
     : unitOnly
     ? {
-        0: { cellWidth: tableW * 0.62, halign: 'left',  valign: 'middle' },
-        1: { cellWidth: tableW * 0.14, halign: 'center',valign: 'middle' },
-        2: { cellWidth: tableW * 0.24, halign: 'right', valign: 'middle' }, // use 'center' se preferir
+        0: { cellWidth: tableW * 0.64, halign: 'left',  valign: 'middle' }, // + largura para o texto
+        1: { cellWidth: tableW * 0.13, halign: 'center',valign: 'middle' },
+        2: { cellWidth: tableW * 0.23, halign: 'right', valign: 'middle' },
       }
     : {
-        0: { cellWidth: tableW * 0.50, halign: 'left',  valign: 'middle' },
+        0: { cellWidth: tableW * 0.54, halign: 'left',  valign: 'middle' }, // + largura para o texto
         1: { cellWidth: tableW * 0.11, halign: 'center',valign: 'middle' },
-        2: { cellWidth: tableW * 0.195,halign: 'right', valign: 'middle' },
-        3: { cellWidth: tableW * 0.195,halign: 'right', valign: 'middle' },
+        2: { cellWidth: tableW * 0.175,halign: 'right', valign: 'middle' },
+        3: { cellWidth: tableW * 0.175,halign: 'right', valign: 'middle' },
       };
 
   // dados
@@ -707,9 +765,13 @@ class PDFGenerator {
     head, body: tableData,
     theme: 'grid',
     styles: {
-      fontSize: 8, lineWidth: 0.1,
+      fontSize: 8,
+      lineWidth: 0.1,
       cellPadding: { top: PAD_Y, right: PAD_X, bottom: PAD_Y, left: PAD_X },
-      minCellHeight: ROW_H, valign: 'middle'
+      minCellHeight: ROW_H,
+      valign: 'top',               // topo por padrão
+      overflow: 'linebreak',       // força quebra (sem ellipses)
+      lineHeight: 1.22             // fator consistente
     },
     headStyles: {
       fillColor: headColor, textColor: [255,255,255],
@@ -720,28 +782,56 @@ class PDFGenerator {
     columnStyles,
     margin: { top: this._headerContentStartY(), left: M, right: M, bottom: this.bottomMargin },
     pageBreak: 'auto',
-    rowPageBreak: 'avoid',
+    rowPageBreak: 'auto', // permite quebrar linha alta entre páginas
     showHead: 'everyPage',
     didParseCell: (data) => {
+      // Coluna "Item": nome no topo, descrição com wrap nativo do AutoTable
       if (data.section === 'body' && data.column.index === 0 && typeof data.cell.raw === 'object') {
-        data.cell.text = '';
-        data.cell.styles.minCellHeight = ROW_H;
+        const ptToMm = (pt) => pt * 0.352778;
+
+        const maxW = (columnStyles[0]?.cellWidth || tableW * 0.54) - PAD_X * 2;
+        const { name = '', desc = '' } = data.cell.raw;
+
+        // Sem rebalancear: apenas quebrar respeitando largura
+        const nameLines = name ? this.doc.splitTextToSize(String(name), maxW) : [];
+
+        // Reserva topo para o nome; AutoTable mede a descrição sozinho
+        const nameLHmm = ptToMm(NAME_FS) * (data.cell.styles.lineHeight || 1.22);
+        const GAP_BEFORE_DESC = 1.0;
+        const topReserve = PAD_Y + nameLines.length * nameLHmm + GAP_BEFORE_DESC;
+
+        // Entrega a descrição como string (AutoTable faz o wrap)
+        data.cell.text = String(desc);
+        data.cell.styles.fontSize = DESC_FS;
+        data.cell.styles.textColor = DESC_COLOR;
+        data.cell.styles.valign = 'top';
+        data.cell.styles.cellPadding = { top: topReserve, right: PAD_X, bottom: PAD_Y, left: PAD_X };
+        data.cell.styles.minCellHeight = ROW_H; // mínimo apenas
+
+        // Guarda medidas para desenhar o nome depois
+        data.cell._nameMeasure = { nameLines, nameLHmm };
       }
     },
     didDrawCell: (data) => {
+      // Desenha o NOME no topo dentro do espaço reservado
       if (data.section !== 'body' || data.column.index !== 0 || typeof data.cell.raw !== 'object') return;
-      const { x, y, width, height } = data.cell;
-      const { name, desc } = data.cell.raw;
-      const maxW = width - PAD_X * 2;
+      const { x, y } = data.cell;
+      const measure = data.cell._nameMeasure;
+      if (!measure) return;
 
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(NAME_FS); doc.setTextColor(0,0,0);
-      doc.text(this._fitOneLine(name, maxW), x + PAD_X, y + PAD_Y + 3);
+      const { nameLines, nameLHmm } = measure;
 
-      if (desc) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(DESC_FS); doc.setTextColor(...DESC_COLOR);
-        doc.text(this._fitOneLine(desc, maxW), x + PAD_X, y + height - PAD_Y + 0.2);
-        doc.setTextColor(0,0,0);
+      this.doc.setFont('helvetica', 'bold');
+      this.doc.setFontSize(NAME_FS);
+      this.doc.setTextColor(0,0,0);
+
+      let lineY = y + PAD_Y;
+      for (const line of nameLines) {
+        this.doc.text(line, x + PAD_X, lineY, { baseline: 'top' });
+        lineY += nameLHmm;
       }
+
+      this.doc.setTextColor(0,0,0);
     },
     didDrawPage: () => this._drawHeaderImageOnPage(),
   });
