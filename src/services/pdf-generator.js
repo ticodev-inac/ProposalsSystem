@@ -385,12 +385,13 @@ class PDFGenerator {
         this._addEventSection(pdfData.event)
       }
 
-      // Itens (sempre renderiza) — agora com título configurável
+      // Itens (sempre renderiza) — título configurável, subtotal fixo
       const itemsTitle = pdfData?.display?.items_title || 'Prestações de Serviço'
+      const itemsSubtotalLabel = 'SUBTOTAL PRESTAÇÕES DE SERVIÇO'
       this._addItemsSection(
-        pdfData.items || [],
+        (pdfData.items || []),
         itemsTitle,
-        `SUBTOTAL ${itemsTitle.toUpperCase()}`,
+        itemsSubtotalLabel,
         pdfData.totals?.subtotal_itens_formatted
       );
 
