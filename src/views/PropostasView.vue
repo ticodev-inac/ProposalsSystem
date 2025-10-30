@@ -1841,12 +1841,20 @@
                     filteredProposals.value = proposals.value
                     return
                 }
-                const term = searchTerm.value.toLowerCase()
-                filteredProposals.value = proposals.value.filter(
-                    (p) =>
-                        p.title?.toLowerCase().includes(term) ||
-                        p.proposal_number?.toString().includes(term)
-                )
+                const term = (searchTerm.value || '').toLowerCase()
+
+                filteredProposals.value = proposals.value.filter((p) => {
+                    const title = (p.title || '').toLowerCase()
+                    const number = ((p.proposal_number ?? '') + '').toLowerCase()
+                    const clientName =
+                        ((p.client_name || p.client?.company_name || '') + '').toLowerCase()
+
+                    return (
+                        title.includes(term) ||
+                        number.includes(term) ||
+                        clientName.includes(term)
+                    )
+                })
             }
 
             const filterClients = () => {
@@ -2710,10 +2718,10 @@
                     const clientIdNormalized = normalizeId(proposal.client_id)
                     
 
-                    // Próximo número baseado no cliente normalizado
+                    // Usa numeração GLOBAL para evitar colisão de chave única
                     let nextNumber = null
                     try {
-                        nextNumber = await ProposalsService.getNextProposalNumber(clientIdNormalized)
+                        nextNumber = await getNextProposalNumber()
                     } catch (_) {}
 
                     const toJSON = (val, def = []) =>
